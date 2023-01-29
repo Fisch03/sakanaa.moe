@@ -1,0 +1,207 @@
+@font-face {
+  font-family: pixel;
+  src:url('../fonts/04B_03__.TTF');
+  font-weight: normal;
+  font-style: normal;
+}
+@font-face {
+  font-family: pixelbig;
+  src: url('../fonts/Pixellari.ttf');
+  font-weight: normal;
+  font-style: normal;
+}
+
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: pixel;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  cursor: url('assets/cursor.png'), auto;
+}
+
+h1 {
+  font-size: 4rem;
+  margin: 0;
+  top: 2rem;
+  left: 0;
+  text-align: center;
+  padding: 0.5rem 0.4rem 0rem ;  
+  border-radius: 10%;
+
+  padding: 0.4rem 1rem 0rem ;
+
+  font-family: pixelbig;
+}
+
+ul {
+  margin-top: 0;
+}
+
+/* Utility classes */
+.shadow {
+  filter: drop-shadow(7px 7px 0 black);
+}
+.shadow-box {
+  box-shadow: 7px 7px 0 black;
+}
+.inv-shadow {
+  filter: drop-shadow(0.8rem 0.8rem 0 white);
+}
+.border {
+  border: 1px solid black;
+}
+.inv-border {
+  border: 5px solid white;
+}
+.background {
+  background-color: white;
+}
+.inv-background {
+  background-color: black;
+}
+.ditherbg {
+  background-repeat: repeat;
+  background-size: auto;
+}
+.colorfilter {
+  filter: saturate(0) contrast(0.8) url(#colorfilter) brightness(0.7)  invert() contrast(1.2) brightness(1.3);
+}
+
+@keyframes bounceA {
+  0%  { transform: translate(0,1px); }
+  50% { transform: translate(0,5px); }
+  100%{ transform: translate(0,1px); }
+}
+.bounce {
+  display: inline-block;
+  animation: bounceA 1s infinite;
+}
+
+/* Waifu Image */
+#BigWaifu {
+  position:absolute;
+  top:0;
+  left:0;
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  justify-content: left;
+  align-items: center;
+}
+
+#BigWaifu > img{
+  top:0;
+  right: 10%;
+  height: 100%;
+  transition: bottom 0.5s;
+  image-rendering: auto;
+
+  transform: translate(calc(65vw),0);
+  z-index: 100;
+}
+
+/* Main Content*/
+#Content {
+  position: absolute;
+  top:    3rem;
+  left:   6rem;
+  right:  6rem;
+  bottom: 3rem;
+  width: 65vw;
+
+  display: flex;
+  justify-self: space-between;
+  gap: 2.5rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  flex-flow: space-between;
+  justify-content: flex-start;
+  align-items: flex-start;
+  left: 0;
+  gap: 4%;
+  width: fit-content;
+}
+
+/* prevent text from being under the waifu ;) */
+.column:nth-child(2) > div > .sectioncontent { 
+  padding-right: 5%;
+}
+
+.column > div {
+  background-color: white;
+  border-radius: 3rem;
+
+  min-height: 15rem;
+  min-width:  15rem;
+}
+
+.sectionheader {
+  border-radius: 3rem 3rem 0 0;
+  border-bottom: 1px solid black;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+
+  padding: .7rem;
+
+  height: 5.5rem;
+}
+.sectionheader:has(h2:nth-child(1)) {
+  justify-content: space-evenly;
+}
+
+.sectionheader > h2 {
+  border-radius: 0.5rem;
+  padding: .4rem;
+  height: fit-content;
+  margin: 0;
+}
+
+.sectioncontent {
+  padding: 1.5rem;
+ 
+  height: calc(100% - 9rem);
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Discord */
+#Discord, #Spotify {
+  min-width: 25rem;
+  max-width: 25rem;
+}
+
+#Discord {
+  min-height: 19rem;
+}
+
+#DiscordActivity {
+  transform: translate(0, -7px);
+}
+
+#Discord > .sectioncontent {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-start;
+  align-items: center;
+  align-content: center;
+}
+
+#DiscordAvatarBorder, #DiscordAvatar {
+  border-radius: 50%;
+  width: 5rem;
+  height: 5rem;
+}

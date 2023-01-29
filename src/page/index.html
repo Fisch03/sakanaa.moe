@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+      <meta charset="UTF-8">
+      <title>sakanaa :)</title>
+      <link rel="stylesheet" href="css/style.css">
+  </head>
+  <body style="background-image: url('assets/dither/bgdither.png');" class="ditherbg onex">
+    <svg xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="colorfilter" color-interpolation-filters="sRGB">
+          <feComponentTransfer>
+            <feFuncR type="linear" slope="1" class="colorfilterbrightness"/>
+            <feFuncG type="linear" slope="1" class="colorfilterbrightness"/>
+            <feFuncB type="linear" slope="1" class="colorfilterbrightness"/>
+          </feComponentTransfer>
+          <feComponentTransfer>
+              <feFuncR type="table" tableValues="1 0"/>
+              <feFuncG type="table" tableValues="1 0"/>
+              <feFuncB type="table" tableValues="1 0"/>
+          </feComponentTransfer>
+          <feColorMatrix id="colorfiltermatrix" type="matrix" 
+            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+        </filter>
+      </defs>
+    </svg>
+    <div id="BigWaifu"><img src="assets/Yuuko.png" class="shadow paletteimg"></div>
+    
+    <div id="Content"> 
+      <!--
+      <div class="row">
+        <div class="background inv-shadow border" style="min-height: 0;">
+          <h1>hi there!</h1>
+        </div>
+      </div>
+      --> 
+      <div class="column">
+        <div id="Discord" class="background inv-shadow border">
+          <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
+            <div class="inv-border" id="DiscordAvatarBorder"><img class="colorfilter" id="DiscordAvatar"></div>
+            <h2  id="DiscordName"   class="background"></h2>
+          </div>
+          <div id="DiscordActivity" class="sectioncontent">
+            <!--Automatically filled by js-->
+          </div>
+        </div>
+        
+        <div id="Uptime" class="background inv-shadow border">
+          <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
+            <h2 class="background">Uptime</h2>
+          </div>
+          <div class="sectioncontent">
+            <h2>Ratio: <span id="UptimeText"> Loading...</span></h2>
+            <h2>Up: <span id="UptimeRatio">Loading...</span></h2>
+          </div>
+        </div>
+      </div>
+      <div class="column">
+        <div id="AboutMe" class="background inv-shadow border">
+          <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
+            <h2 class="background">About Me</h2>
+          </div>
+          <div class="sectioncontent">
+            <p>Hi! if you read this you somehow found a way to this random place on the interwebs, glad to have you here :)</p>
+            <p>im sakanaa (formerly Fisch03), a 19 year old CS student from germany.</p>
+            <p>
+              stuff i like:
+              <ul>
+                <li>programming</li>
+                <li>anime</li>
+                <li>vtuber</li>
+                <li>rythm games</li>
+                <li>music</li>
+              </ul>
+            </p>
+          </div>
+        </div>
+    </div>
+  </body>
+  <!--build:js-->
+  <script src="js/!palettes.js"></script>
+  <script src="js/colors.js"></script>
+  <script src="js/discord.js"></script>
+  <script src="js/uptime.js"></script>
+  <!--endbuild-->
+</html>

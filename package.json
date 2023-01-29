@@ -1,0 +1,52 @@
+{
+  "name": "sakanaa.moe",
+  "version": "1.0.0",
+  "description": "my website :)",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "build": "gulp build",
+
+    "prestart": "npm run build",
+    "start": "node dist/server/index.js",
+
+    "dev": "gulp dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fisch03/sakanaa.moe.git"
+  },
+  "author": "sakanaa",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Fisch03/sakanaa.moe/issues"
+  },
+  "homepage": "https://github.com/Fisch03/sakanaa.moe#readme",
+  "dependencies": {
+    "compression": "^1.7.4",
+    "del": "^7.0.0",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@types/compression": "^1.7.2",
+    "@types/del": "^4.0.0",
+    "@types/express": "^4.17.16",
+    "@types/gulp": "^4.0.10",
+    "@types/gulp-minify": "^3.1.1",
+    "@types/node": "^18.11.18",
+    "browser-sync": "^2.27.11",
+    "copyfiles": "^2.4.1",
+    "gulp": "^4.0.2",
+    "gulp-clean-css": "^4.3.0",
+    "gulp-concat": "^2.6.1",
+    "gulp-exec": "^5.0.0",
+    "gulp-html-replace": "^1.6.2",
+    "gulp-htmlmin": "^5.0.1",
+    "gulp-live-server": "^0.0.31",
+    "gulp-minify": "^3.1.0",
+    "gulp-typescript": "^6.0.0-alpha.1",
+    "nodemon": "^2.0.20",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.4"
+  }
+}
