@@ -82,7 +82,7 @@ function getBits(img) {
   for(let i = 0; i < data.data.length; i+=4) {
     if(data.data[i+3] == 0) {
       bits.push(0);
-    }else if(data.data[i] == 255 && data.data[i+1] == 255 && data.data[i+2] == 255) {
+    }else if(data.data[i] >= 200 && data.data[i+1] >= 200 && data.data[i+2] >= 200) {
       bits.push(1);
     } else {
       bits.push(2);

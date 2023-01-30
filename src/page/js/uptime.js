@@ -12,7 +12,7 @@ window.addEventListener('load',() => {
         }  
       });
       avgUptime = avgUptime / data.monitors.length;
-      document.getElementById('UptimeText').innerText = `${avgUptime.toFixed(1)}%`;
+      document.getElementById('UptimeText').innerText = `${avgUptime.toFixed(2)}%`;
 
       if(up == data.monitors.length) {
         document.getElementById('UptimeCurrent').innerText = 'everything works right now!';
@@ -21,5 +21,8 @@ window.addEventListener('load',() => {
       } else {
         document.getElementById('UptimeCurrent').innerText = `${data.monitors.length - up} services are down, uh oh!`;
       }
+    })
+    .catch(err => {
+      document.getElementById('UptimeText').innerText = 'could not fetch data...';
     })
 })

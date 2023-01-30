@@ -9,6 +9,8 @@ const port = 3000;
 
 app.use(compression());
 
+app.use(express.static("dist/page"));
+
 let uptimestats: uptimeRobotResponse;
 app.get("/api/uptime", (req, res) => {
   res.json(uptimestats);
