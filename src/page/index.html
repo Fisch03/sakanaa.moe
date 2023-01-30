@@ -45,13 +45,13 @@
           </div>
         </div>
         
-        <div id="Uptime" class="background inv-shadow border">
+        <div id="Uptime" class="background inv-shadow border vertical">
           <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
             <h2 class="background">Uptime</h2>
           </div>
           <div class="sectioncontent">
-            <h2>Ratio: <span id="UptimeText"> Loading...</span></h2>
-            <h2>Up: <span id="UptimeRatio">Loading...</span></h2>
+            <h2><span id="UptimeText"></span></h2>
+            <span id="UptimeCurrent"></span>
           </div>
         </div>
       </div>
@@ -77,6 +77,7 @@
         </div>
     </div>
   </body>
+  <!--i dont like :( <script src="js/mouse.js"></script>-->
   <!--build:js-->
   <script src="js/!palettes.js"></script>
   <script src="js/colors.js"></script>

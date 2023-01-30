@@ -1,4 +1,4 @@
-src/server/index.js
+src/server/*.js
 
 # Logs
 logs

@@ -15,7 +15,7 @@ function updateDiscord() {
         document.getElementById('DiscordActivity').innerHTML = '<h2>Offline</h2>';
       } else if(data.listening_to_spotify) {
         document.getElementById('DiscordActivity').innerHTML = `
-        <img style="width: 10rem; border-radius: 1rem; margin-bottom: 10px; margin-left: 5px;" class="shadow-box colorfilter" src=${data.spotify.album_art_url} alt="Album Art" id="AlbumArt">
+        <div style="width: 10rem; height: 10rem; border-radius: 1rem;margin-bottom: 10px; margin-left: 5px;" class="shadow-box"><img style="width: 10rem; border-radius: 1rem;" class="colorfilter" src=${data.spotify.album_art_url} alt="Album Art" id="AlbumArt"></div>
         <div>
           <h3><img style="display: inline-block; width: 20px; margin-right:4px;" class="bounce colorfilter" src="/assets/notespin.png">im listening to</h3>
           <h2 style="max-width: 20rem; margin-bottom: 5px">${data.spotify.song}</h2>

@@ -111,15 +111,10 @@ window.addEventListener('keydown', (e) => {
 function applyColors() {
   backgrounds.forEach(bg=>bg.style.backgroundColor = `rgb(${bgcolor.r}, ${bgcolor.g}, ${bgcolor.b})`);
 
-  document.querySelector('body').style.color = `rgb(${fgcolor.r}, ${fgcolor.g}, ${fgcolor.b})`;
-  document.querySelector('body').style.cursor = `url('${replaceColors(cursorimg)}'), auto`;
+  document.querySelector(':root').style.setProperty('--fg-color', `rgb(${fgcolor.r}, ${fgcolor.g}, ${fgcolor.b})`);
+  document.querySelector(':root').style.setProperty('--bg-color', `rgb(${bgcolor.r}, ${bgcolor.g}, ${bgcolor.b})`);
 
-  document.querySelectorAll('.shadow')    .forEach(e => {e.style.filter = `drop-shadow(   7px    7px 0 rgb(${fgcolor.r}, ${fgcolor.g}, ${fgcolor.b})`});
-  document.querySelectorAll('.inv-shadow').forEach(e => {e.style.filter = `drop-shadow(0.8rem 0.8rem 0 rgb(${bgcolor.r}, ${bgcolor.g}, ${bgcolor.b})`});
-  document.querySelectorAll('.shadow-box').forEach(e => {e.style.boxShadow = `7px 7px 0rem rgb(${fgcolor.r}, ${fgcolor.g}, ${fgcolor.b})`});
-  
-  document.querySelectorAll('.border')    .forEach(e => {e.style.borderColor = `rgb(${fgcolor.r}, ${fgcolor.g}, ${fgcolor.b})`});
-  document.querySelectorAll('.inv-border').forEach(e => {e.style.borderColor = `rgb(${bgcolor.r}, ${bgcolor.g}, ${bgcolor.b})`});
+  document.querySelector('body').style.cursor = `url('${replaceColors(cursorimg)}'), auto`;
 
   document.querySelectorAll('.onex').forEach(e=>{e.style.backgroundImage = `url('${replaceColors(ditherimg[1])}')`});
   document.querySelectorAll('.twox').forEach(e=>{e.style.backgroundImage = `url('${replaceColors(ditherimg[2])}')`});

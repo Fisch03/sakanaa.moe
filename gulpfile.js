@@ -3,19 +3,23 @@ const { series,parallel, dest,src } = gulp;
 
 import { deleteAsync } from "del";
 import concat from 'gulp-concat';
+import cp from 'child_process';
+const exec = cp.exec;
 
 import minify from 'gulp-minify';
 import htmlmin from 'gulp-htmlmin';
+import htmlReplace from 'gulp-html-replace';
 import cleanCSS from 'gulp-clean-css';
+import imagemin from 'gulp-imagemin';
 
 import ts from 'gulp-typescript';
-import htmlReplace from 'gulp-html-replace';
 
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import bs from 'browser-sync';
+import nodemon from 'nodemon';
 const browserSync = bs.create();
 
-import cp from 'child_process';
-const exec = cp.exec;
+
 
 /* Server Tasks */
 const serversrc = 'src/server/';
@@ -28,9 +32,6 @@ function cleanServer() {
 
 function transpileServer() {
   return server.src().pipe(server()).js.pipe(dest(serverout));
-}
-function transpileDevServer() {
-  return server.src().pipe(server()).js.pipe(dest('src/server/'));
 }
 
 gulp.task('buildServer', series(cleanServer, transpileServer));
@@ -78,19 +79,45 @@ function minifyCss() {
     .pipe(cleanCSS())
     .pipe(dest(pageout + '/css'));
 }
+function compressImages() {
+  return src(pagesrc+'/assets/**/*')
+    .pipe(imagemin())
+    .pipe(dest(pageout + '/assets'));
+}
 
-gulp.task('buildPage', series(cleanPage, copyFiles, parallel(minifyJs, minifyHtml, minifyCss)));
+gulp.task('buildPage', series(cleanPage, copyFiles, parallel(minifyJs, minifyHtml, minifyCss, compressImages)));
 
-/* Main Tasks */
+/* Server Tasks */
+function runServer(cb) {
+  exec('node dist/server/server.js', (err, stdout, stderr) => {
+    console.log(stdout);
+    console.log(stderr);
+    cb(err);
+  });
+}
 
-gulp.task('clean', () => deleteAsync(['dist']));
-gulp.task('build', parallel('buildServer','buildPage'))
+function devRunServer(cb) {
+  let stream = nodemon({
+    watch: ["src/server/server.ts"],
+    exec: 'ts-node-esm src/server/server.ts',
+  });
 
-function devServer(cb) {
+  stream.on('restart', () => {
+    console.log('retranspiling server...');
+  });
+  
+  return stream;
+}
+
+function devRunBrowserSync() {
+  let apiProxy = createProxyMiddleware('/api', {target: 'http://localhost:3000'});
+
   browserSync.init({
     server: {
       baseDir: pagesrc,
+      middleware: [apiProxy],
     },
+    open: false,
     port: 3001,
   });
 
@@ -98,18 +125,13 @@ function devServer(cb) {
     browserSync.reload();
     cb();
   });
-
-  exec('node src/server/index.js', (err, stdout, stderr) => {
-    console.log(stdout);
-    console.log(stderr);
-    cb(err);
-  });
 }
 
-gulp.task('dev',
-  series( 
-    transpileDevServer,
-    devServer
-));
+/* Main Tasks */
+gulp.task('clean', () => deleteAsync(['dist']));
+gulp.task('build', parallel('buildServer','buildPage'))
+gulp.task('run', series('build', runServer))
+
+gulp.task('dev',parallel(devRunServer,devRunBrowserSync));
 
 export default series('build');
