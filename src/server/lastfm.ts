@@ -92,7 +92,6 @@ export default class LastFM{
         this.doSpotifyRequest(track)
         .then(data => {
           if(data.tracks.items.length > 0) {
-            console.log(track.name + " "+ data.tracks.items[0].album.images[0].url);
             track.cover = data.tracks.items[0].album.images[0].url;
             LastFM.coverCache.set(track, data.tracks.items[0].album.images[0].url);
           }
