@@ -12,7 +12,7 @@ function updateDiscord() {
       document.getElementById('DiscordAvatar').src = avatar;
       document.getElementById('DiscordName').innerText = `${data.discord_user.username}#${data.discord_user.discriminator}`
       if(data.discord_status == 'offline') {
-        document.getElementById('DiscordActivity').innerHTML = '<h2>Offline</h2>';
+        document.getElementById('DiscordActivity').innerHTML = '<h2 style="width: 100%; text-align:center">Offline</h2>';
       } else if(data.listening_to_spotify) {
         document.getElementById('DiscordActivity').innerHTML = `
         <div style="width: 10rem; height: 10rem; border-radius: 1rem;margin-bottom: 10px; margin-left: 5px;" class="shadow-box"><img style="width: 10rem; border-radius: 1rem;" class="colorfilter" src=${data.spotify.album_art_url} alt="Album Art" id="AlbumArt"></div>
@@ -36,6 +36,8 @@ function updateDiscord() {
           <h4 style="max-width: 20rem; margin-top: 0">${activity.state}</h4>
         </div>
         `
+      } else {
+        document.getElementById('DiscordActivity').innerHTML = '<h3 style="width: 100%; text-align:center">i\'m not doing anything rn</h3>';
       }
     }) 
 }

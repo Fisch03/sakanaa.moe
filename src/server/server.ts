@@ -1,8 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import compression from "compression";
 import fetch from "node-fetch";
 
 import { uptimeRobotResponse } from "./uptimerobot";
+import LastFM from "./lastfm.js";
 
 const app: express.Application = express();
 const port = 3000;
@@ -15,7 +19,6 @@ let uptimestats: uptimeRobotResponse;
 app.get("/api/uptime", (req, res) => {
   res.json(uptimestats);
 });
-
 setInterval(() => {
   console.log("fetching new uptime stats")
 
@@ -30,6 +33,12 @@ setInterval(() => {
   })
   .then(data => uptimestats = data as uptimeRobotResponse)
 }, 1000*60);
+
+const lastfm = new LastFM();
+lastfm.init();
+app.get("/api/lastfm", (req, res) => {
+  res.json(lastfm.getTracks());
+});
 
 app.listen(port, () => {
   console.log(`server started at http://localhost:${port}`);

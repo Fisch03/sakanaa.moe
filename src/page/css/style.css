@@ -112,7 +112,7 @@ ul {
   transition: bottom 0.5s;
   image-rendering: auto;
 
-  transform: translate(calc(65vw),0);
+  transform: translate(65vw,0);
   z-index: 100;
 }
 
@@ -144,11 +144,22 @@ ul {
 
 /* prevent text from being under the waifu ;) */
 .column:nth-child(2) > div > .sectioncontent { 
-  padding-right: 5%;
+  padding-right: 3rem;
 }
 
-.column > div {
+.container {
   border-radius: 3rem;
+}
+
+.horizontaldivider {
+  width: 100%;  
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.bottom {
+  margin-top: auto;
 }
 
 .vertical {
@@ -205,6 +216,9 @@ ul {
   overflow-wrap: break-word;
   hyphens: auto;
 }
+.sectioncontent > h2 {
+  margin: 0;
+}
 .vertical > .sectioncontent {
   float: left;
   height: 100%;
@@ -218,10 +232,6 @@ ul {
   max-width: 25rem;
 }
 
-#Discord {
-  min-height: 19rem;
-}
-
 #DiscordActivity {
   transform: translate(0, -7px);
 }
@@ -232,7 +242,8 @@ ul {
   justify-content: flex-start;
   align-items: center;
   align-content: center;
-  padding: 1.5rem .5rem 0 .5rem;
+  padding: 1.5rem .5rem .5rem .5rem;
+  min-height: 4rem;
 }
 
 #DiscordAvatarBorder, #DiscordAvatar {
@@ -241,15 +252,38 @@ ul {
   height: 5rem;
 }
 
+/* Music */
+#Music {
+  min-width: 25rem;
+  max-width: 25rem;
+  flex-grow: 1;
+
+  overflow-y: hidden;
+}
+
+#Music > .sectioncontent {
+  overflow-x: scroll;
+  height: 100%;
+}
+#Music > .sectioncontent::-webkit-scrollbar {
+  display: none;
+}
+
+#Music > .sectioncontent > div {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  align-content: center;
+  flex-direction: row;
+}
+
 /* Uptime */
 #Uptime > .sectioncontent {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-}
-#Uptime > .sectioncontent > h2 {
-  margin: 1rem;
+  gap: .5rem;
 }
 
 /* Site Controls */
@@ -259,4 +293,17 @@ ul {
 #SiteControls > .sectionheader {
   gap: 0;
   justify-content: center;
+}
+
+#Socials > .sectioncontent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  align-content: center;
+  padding: 0 1.5rem;
+}
+#Socials > .sectioncontent > svg {
+  width: 4rem;
+  height: 4rem;
+  transition: transform 0.2s;
 }

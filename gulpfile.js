@@ -98,7 +98,7 @@ function runServer(cb) {
 
 function devRunServer(cb) {
   let stream = nodemon({
-    watch: ["src/server/server.ts"],
+    watch: ["src/server/server.ts", "src/server/*"],
     exec: 'ts-node-esm src/server/server.ts',
   });
 

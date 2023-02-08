@@ -24,8 +24,10 @@
   "dependencies": {
     "compression": "^1.7.4",
     "del": "^7.0.0",
+    "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "node-fetch": "^3.3.0"
+    "node-fetch": "^3.3.0",
+    "spotify-web-api-node": "^5.0.2"
   },
   "devDependencies": {
     "@types/compression": "^1.7.2",
@@ -34,6 +36,7 @@
     "@types/gulp": "^4.0.10",
     "@types/gulp-minify": "^3.1.1",
     "@types/node": "^18.11.18",
+    "@types/spotify-web-api-node": "^5.0.7",
     "browser-sync": "^2.27.11",
     "copyfiles": "^2.4.1",
     "gulp": "^4.0.2",
