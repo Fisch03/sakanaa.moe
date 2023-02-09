@@ -5,6 +5,7 @@ const backgrounds = document.querySelectorAll('.background');
 let imgs = [];
 let ditherimg = {};
 let cursorimg = {};
+let cursorhoverimg = {};
 
 pointer = 0;
 
@@ -49,6 +50,19 @@ function prepareImages() {
       resolve();
     };
     img.src='assets/cursor.png';
+  }));
+  promises.push(new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let bits = getBits(img)
+      cursorhoverimg = {
+        b: bits,
+        w: img.width,
+        h: img.height
+      };
+      resolve();
+    };
+    img.src='assets/cursorhover.png';
   }));
 
   return Promise.all(promises);
@@ -114,7 +128,8 @@ function applyColors() {
   document.querySelector(':root').style.setProperty('--fg-color', `rgb(${fgcolor.r}, ${fgcolor.g}, ${fgcolor.b})`);
   document.querySelector(':root').style.setProperty('--bg-color', `rgb(${bgcolor.r}, ${bgcolor.g}, ${bgcolor.b})`);
 
-  document.querySelector('body').style.cursor = `url('${replaceColors(cursorimg)}'), auto`;
+  document.querySelector(':root').style.setProperty('--cursor', `url('${replaceColors(cursorimg)}')`);
+  document.querySelector(':root').style.setProperty('--cursor-hover', `url('${replaceColors(cursorhoverimg)}')`);
 
   document.querySelectorAll('.onex').forEach(e=>{e.style.backgroundImage = `url('${replaceColors(ditherimg[1])}')`});
   document.querySelectorAll('.twox').forEach(e=>{e.style.backgroundImage = `url('${replaceColors(ditherimg[2])}')`});

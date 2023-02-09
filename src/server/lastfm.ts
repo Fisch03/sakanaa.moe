@@ -27,6 +27,7 @@ interface Track extends TrackData {
 }
 interface TopTrack extends Track {
   playcount: number;
+  link?: string;
 }
 
 interface LastFMTopTracksResponse {
@@ -45,6 +46,9 @@ interface SpotifySearchResponse {
   tracks: {
     items: {
       album: {
+        external_urls: {
+          spotify: string;
+        };
         images: {
           url: string;
         }[];
@@ -68,7 +72,7 @@ export default class LastFM{
   }
 
   public update() {
-    this.doLastFMRequest<LastFMTopTracksResponse>('user.gettoptracks', `user=Fisch03&period=7days&limit=10`)
+    this.doLastFMRequest<LastFMTopTracksResponse>('user.gettoptracks', `user=Fisch03&period=7days`)
     .then(data => {
       this.topTracks = [];
       this.responseCache = data as LastFMTopTracksResponse;
@@ -77,7 +81,8 @@ export default class LastFM{
           name: track.name,
           artist: track.artist.name,
           cover: undefined,
-          playcount: track.playcount
+          playcount: track.playcount,
+          link: undefined
         });
       });
       this.updateCovers();
@@ -93,6 +98,7 @@ export default class LastFM{
         .then(data => {
           if(data.tracks.items.length > 0) {
             track.cover = data.tracks.items[0].album.images[0].url;
+            track.link = data.tracks.items[0].album.external_urls.spotify;
             LastFM.coverCache.set(track, data.tracks.items[0].album.images[0].url);
           }
         })
