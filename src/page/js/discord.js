@@ -33,8 +33,8 @@ function updateDiscord() {
         document.getElementById('DiscordActivity').innerHTML = `
         <img style="width: 10rem; height:10rem; border-radius: 1rem; margin-bottom: 10px; margin-left: 5px;" class="shadow-box colorfilter" src=${image} alt="Album Art" id="AlbumArt">
         <div>
-          <h3>im playing</h3>
-          <h2 style="max-width: 20rem; margin-bottom: 5px">${activity.name}</h2>
+          <h3 style="margin-bottom: 10px;">im playing</h3>
+          <h2 style="max-width: 20rem; margin-bottom: 5px; margin-top: 0">${activity.name}</h2>
           <h4 style="max-width: 20rem; margin-bottom: 5px; margin-top: 0">${activity.details}</h4>
           <h4 style="max-width: 20rem; margin-top: 0">${activity.state}</h4>
         </div>

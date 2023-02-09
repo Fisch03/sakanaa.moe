@@ -268,6 +268,7 @@ ul {
   height: 100%;
   width: calc(100% - 6rem);
   padding:0;
+  transform: translateX(.5rem);
 }
 .vertical > a > .sectioncontent {
   width: 100%;
@@ -335,6 +336,9 @@ ul {
   left: 0;
   right:0
 }
+#UptimeCurrent {
+  text-align: center;
+}
 
 /* Site Controls */
 #SiteControls {
@@ -356,4 +360,21 @@ ul {
   width: 4rem;
   height: 4rem;
   transition: transform 0.2s;
+}
+
+/* Mobile and smaller screens */
+@media screen and (max-width: 1100px) {
+  #BigWaifu {
+    display: none;
+  }
+
+  #Content {
+    width: 90vw;
+  }
+}
+
+@media screen and (max-width: 1450px) and (min-width: 1100px) {
+  #UptimeCurrent {
+    display: none;
+  }
 }
