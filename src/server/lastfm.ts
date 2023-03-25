@@ -72,7 +72,7 @@ export default class LastFM{
   }
 
   public update() {
-    this.doLastFMRequest<LastFMTopTracksResponse>('user.gettoptracks', `user=Fisch03&period=7days`)
+    this.doLastFMRequest<LastFMTopTracksResponse>('user.gettoptracks', `user=Fisch03&period=1month`)
     .then(data => {
       this.topTracks = [];
       this.responseCache = data as LastFMTopTracksResponse;

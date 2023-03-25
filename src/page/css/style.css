@@ -17,14 +17,16 @@
 
   --cursor: url('../assets/cursor.png');
   --cursor-hover: url('../assets/cursorhover.png');
+
+  --sidecolumn-width: 23vw;
 }
 
 body {
   width: 100%;
   height: 100%;
   margin: 0;
-  overflow: hidden;
   font-family: pixel;
+  letter-spacing: -1px;
   font-smooth: never;
   -webkit-font-smoothing: none;
 
@@ -73,6 +75,7 @@ h1 {
   padding: 0.4rem 1rem 0rem ;
 
   font-family: pixelbig;
+  letter-spacing: normal;
 }
 
 ul {
@@ -121,7 +124,7 @@ ul {
 
 /* Waifu Image */
 #BigWaifu {
-  position:absolute;
+  position: fixed;
   top:0;
   left:0;
   width: 100%;
@@ -130,6 +133,10 @@ ul {
   display: flex;
   justify-content: left;
   align-items: center;
+
+  z-index: 100;
+
+  pointer-events: none;
 }
 
 #BigWaifu > img{
@@ -139,22 +146,25 @@ ul {
   transition: bottom 0.5s;
   image-rendering: auto;
 
-  transform: translate(65vw,0);
-  z-index: 100;
+  transform: translate(68vw,0);
+
+  pointer-events: none;
 }
 
 /* Main Content*/
 #Content {
   position: absolute;
   top:    calc(min(3rem, 5vh));
-  left:   calc(min(6rem, 3vw));
+  left:   calc(min(6rem, 3vw) + 2.5rem + var(--sidecolumn-width));
   right:  calc(min(6rem, 3vw));
-  bottom: calc(min(3rem, 5vh));
-  width: 65vw;
+  /*bottom: calc(min(3rem, 5vh));*/
+  width: calc(70vw - var(--sidecolumn-width) - 2.5rem);
 
+  /*
   display: flex;
   justify-self: space-between;
   gap: 2.5rem;
+  */
 }
 
 .column {
@@ -166,16 +176,13 @@ ul {
   left: 0;
   gap: 2rem;
   height: 100%;
-  width: fit-content;
+  /*width: fit-content*/;
 }
 
 .column:nth-child(1) {
-  width: 20vw;
-  min-width: 24rem;
-  max-width: 26rem;
-}
-.column:nth-child(2) {
-  flex-grow: 1;
+  position: fixed;
+  left: calc(min(6rem, 3vw));
+  width: var(--sidecolumn-width);
 }
 
 .column > div {
@@ -183,10 +190,9 @@ ul {
 }
 
 /* prevent text from being under the waifu ;) */
-.column:nth-child(2) > div > .sectioncontent, .column:nth-child(2) > div > a > .sectioncontent { 
-  padding-right: 3rem;
+#MainColumn > div > .sectioncontent, #MainColumn > div > a > .sectioncontent { 
+  padding-right: 4vw;
 }
-
 
 .container {
   border-radius: 3rem;
@@ -257,7 +263,7 @@ ul {
   padding: .7rem 1.5rem;
  
   height: calc(100% - 9rem);
-  overflow-wrap: break-word;
+  /*overflow-wrap: break-word;*/
   hyphens: auto;
 }
 .sectioncontent > h2 {
@@ -308,14 +314,14 @@ ul {
 
 /* Music */
 #Music {
-  flex-grow: 1;
-
-  overflow-y: hidden;
+  max-height: 150rem;
+  overflow: hidden;
 }
 
 #Music > .sectioncontent {
-  overflow-x: scroll;
-  height: calc(100% - 6.8rem);
+  height: 40vh;
+  overflow-y: auto;
+  border-radius: 0rem 0rem 3rem 3rem;
 }
 
 #Music > .sectioncontent > div, #Music > .sectioncontent > a > div {
@@ -363,18 +369,47 @@ ul {
 }
 
 /* Mobile and smaller screens */
-@media screen and (max-width: 1100px) {
-  #BigWaifu {
-    display: none;
-  }
-
-  #Content {
-    width: 90vw;
+@media screen and (max-width: 1900px) {
+  #BigWaifu > img {
+    transform: translate(66vw,0);
   }
 }
 
-@media screen and (max-width: 1450px) and (min-width: 1100px) {
-  #UptimeCurrent {
+@media screen and (max-width: 1550px) {
+  #BigWaifu > img {
+    transform: translate(60vw,0);
+  }
+
+  .column:nth-child(1) {
+    position: unset;
+    left: unset;
+    width: 100%;
+    margin-bottom: 2rem;
+  }
+  
+
+  #Content {
+    left:  calc(min(6rem, 10vw));
+    width: calc(65vw - 2.5rem);
+  }
+}
+
+@media screen and (((orientation: portrait) and (max-width: 1550px)) or (max-width: 750px)) {
+  #Content {
+    flex-direction: column;
+    left:  calc(min(6rem, 10vw));
+    right: calc(min(6rem, 10vw));
+    width: unset;
+  }
+
+  .column:nth-child(1) {
+    position: unset;
+    left: unset;
+    width: 100%;
+    margin-bottom: 2rem;
+  }
+
+  #BigWaifu {
     display: none;
   }
 }

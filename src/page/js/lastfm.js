@@ -17,7 +17,7 @@ function fetchlastfm() {
           <div>
             <h3 style="max-width: 20rem; margin-bottom: 0px; margin-top: 0px">${song.name}</h3>
             <p style="max-width: 20rem; margin-top: 0; margin-bottom: 8px">${song.artist}</p>
-            <p style="max-width: 20rem; margin-top: 0; margin-bottom: 0px">${song.playcount}x in the past week</p>
+            <p style="max-width: 20rem; margin-top: 0; margin-bottom: 0px">${song.playcount}x in the past month</p>
           </div>
         </div>
         ${song.link!=undefined?`</a>`:""}
