@@ -6,7 +6,7 @@ import compression from "compression";
 import fetch from "node-fetch";
 
 import { uptimeRobotResponse } from "./uptimerobot";
-import LastFM from "./lastfm.js";
+import LastFM from "./music/lastfm.js";
 
 const app: express.Application = express();
 const port = 3000;

@@ -30,6 +30,11 @@ function cleanServer() {
   return deleteAsync(['dist/server']);
 }
 
+function makeFolders() {
+  return src('*.*', {read: false})
+    .pipe(dest('db'))
+}
+
 function transpileServer() {
   return server.src().pipe(server()).js.pipe(dest(serverout));
 }
@@ -128,10 +133,10 @@ function devRunBrowserSync() {
 }
 
 /* Main Tasks */
-gulp.task('clean', () => deleteAsync(['dist']));
+gulp.task('clean', parallel(()=>deleteAsync(['dist']), ()=>deleteAsync(['db'])));
 gulp.task('build', parallel('buildServer','buildPage'))
-gulp.task('run', series('build', runServer))
+gulp.task('run', series(makeFolders, 'build', runServer))
 
-gulp.task('dev',parallel(devRunServer,devRunBrowserSync));
+gulp.task('dev',series(makeFolders, parallel(devRunServer,devRunBrowserSync)));
 
 export default series('build');

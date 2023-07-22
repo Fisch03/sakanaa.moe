@@ -2,6 +2,11 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import fetch from "node-fetch";
+
+import TrackDB from "./trackdb.js";
+import { TrackData } from "./tracktypes.js";
+
+/*
 import SpotifyWebApi from "spotify-web-api-node";
 
 let spotify = new SpotifyWebApi({
@@ -16,19 +21,7 @@ spotify.clientCredentialsGrant().then(
     console.log('Something went wrong when retrieving an access token', err);
   }
 )
-
-
-interface TrackData {
-  name: string;
-  artist: string;
-}
-interface Track extends TrackData {
-  cover?: string;
-}
-interface TopTrack extends Track {
-  playcount: number;
-  link?: string;
-}
+*/
 
 interface LastFMTopTracksResponse {
   toptracks: {
@@ -42,6 +35,7 @@ interface LastFMTopTracksResponse {
   };
 }
 
+/*
 interface SpotifySearchResponse {
   tracks: {
     items: {
@@ -56,12 +50,12 @@ interface SpotifySearchResponse {
     }[];
   };
 }
+*/
 
-export default class LastFM{
-  static coverCache: Map<TrackData, string> = new Map();
-  responseCache: LastFMTopTracksResponse | null = null;
+export default class LastFM {
+  TrackDB = new TrackDB();
   
-  topTracks: TopTrack[] = [];
+  topTracks: TrackData[] = [];
 
   public init() {
     setInterval(() => {
@@ -75,20 +69,22 @@ export default class LastFM{
     this.doLastFMRequest<LastFMTopTracksResponse>('user.gettoptracks', `user=Fisch03&period=1month`)
     .then(data => {
       this.topTracks = [];
-      this.responseCache = data as LastFMTopTracksResponse;
-      this.responseCache.toptracks.track.forEach(track => {
-        this.topTracks.push({
+      data.toptracks.track.forEach(async (track) => {
+        let trackData: TrackData = {
           name: track.name,
           artist: track.artist.name,
-          cover: undefined,
-          playcount: track.playcount,
-          link: undefined
-        });
+        };
+        
+        trackData = await this.TrackDB.fillTrackData(trackData);
+
+        trackData.playcount = track.playcount;
+
+        this.topTracks.push(trackData);
       });
-      this.updateCovers();
     });
   }
 
+  /*
   updateCovers() {
     this.topTracks.forEach(track => {
       if(LastFM.coverCache.has(track)) {
@@ -102,21 +98,10 @@ export default class LastFM{
             LastFM.coverCache.set(track, data.tracks.items[0].album.images[0].url);
           }
         })
-        /*
-        this.doLastFMRequest<LastFMTrack>('track.getInfo', `artist=${track.artist}&track=${track.name}`)
-        .then(data => {
-          if(!data.track.album || data.track.album.image.length < 4 || data.track.album.image[3]["#text"] == '') {
-            track.cover = undefined;
-          } else {
-            track.cover = data.track.album.image[3]["#text"];
-            LastFM.coverCache.set(track, data.track.album.image[3]["#text"]);
-            return 
-          }
-        })
-        */
       }
     });
   }
+  */
 
   doLastFMRequest<T>(method: string, params: string) {
     return new Promise<T>((resolve, reject) => {
@@ -135,6 +120,7 @@ export default class LastFM{
     });
   }	
 
+  /*
   doSpotifyRequest(track: Track) {
     return new Promise<SpotifySearchResponse>((resolve, reject) => {
       spotify.searchTracks(`artist:${track.artist} ${track.name}`)
@@ -143,8 +129,9 @@ export default class LastFM{
       });
     });
   }
+  */
 
-  getTracks(): Track[] {
+  getTracks(): TrackData[] {
     return this.topTracks;
   }
 }

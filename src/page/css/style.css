@@ -40,6 +40,8 @@ body {
   user-select: none;
 
   cursor: var(--cursor), auto;
+
+  background-attachment: fixed;
 }
 
 ::-webkit-scrollbar {
@@ -81,6 +83,17 @@ h1 {
 ul {
   margin-top: 0;
 }
+
+table {
+  border-spacing: 20px 7px;
+}
+th {
+  text-align: left;
+}
+tr {
+  vertical-align: top;
+}
+
 
 /* Utility classes */
 .shadow {
@@ -154,10 +167,13 @@ ul {
 /* Main Content*/
 #Content {
   position: absolute;
-  top:    calc(min(3rem, 5vh));
+
+  top: 0;
   left:   calc(min(6rem, 3vw) + 2.5rem + var(--sidecolumn-width));
   right:  calc(min(6rem, 3vw));
-  /*bottom: calc(min(3rem, 5vh));*/
+
+  padding: calc(min(3rem, 5vh)) 0;
+
   width: calc(70vw - var(--sidecolumn-width) - 2.5rem);
 
   /*
@@ -203,10 +219,6 @@ ul {
   display: flex;
   justify-content: space-between;
   gap: 2rem;
-}
-
-.bottom {
-  margin-top: auto;
 }
 
 .vertical {
@@ -332,6 +344,10 @@ ul {
   flex-direction: row;
 }
 
+.song {
+  flex-grow: 1;
+}
+
 /* Uptime */
 #Uptime > a > .sectioncontent {
   display: flex;
@@ -391,6 +407,10 @@ ul {
   #Content {
     left:  calc(min(6rem, 10vw));
     width: calc(65vw - 2.5rem);
+  }
+
+  .hideonmobile {
+    display: none;
   }
 }
 
