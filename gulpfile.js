@@ -63,7 +63,7 @@ function copyFiles() {
     '!'+pagesrc+'palettes/**',
     '!'+pagesrc+'palettes/',
 
-    '!'+pagesrc+'/**/*.py'
+    '!'+pagesrc+'/**/*.py',
   ]).pipe(dest(pageout));
 }
 
@@ -90,7 +90,7 @@ function compressImages() {
     .pipe(dest(pageout + '/assets'));
 }
 
-gulp.task('buildPage', series(cleanPage, copyFiles, parallel(minifyJs, minifyHtml, minifyCss, compressImages)));
+gulp.task('buildPage', series(cleanPage, copyFiles, parallel(minifyJs, minifyHtml, minifyCss, /*compressImages*/)));
 
 /* Server Tasks */
 function runServer(cb) {
