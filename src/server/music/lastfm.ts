@@ -4,7 +4,7 @@ dotenv.config();
 import fetch from "node-fetch";
 
 import TrackDB from "./trackdb.js";
-import { TrackData } from "./tracktypes.js";
+import { AlbumData, TrackData } from "./tracktypes.js";
 
 /*
 import SpotifyWebApi from "spotify-web-api-node";
@@ -35,6 +35,10 @@ interface LastFMTopTracksResponse {
   };
 }
 
+interface DisplayableTrack extends TrackData {
+  cover?: string;
+}
+
 /*
 interface SpotifySearchResponse {
   tracks: {
@@ -55,7 +59,7 @@ interface SpotifySearchResponse {
 export default class LastFM {
   TrackDB = new TrackDB();
   
-  topTracks: TrackData[] = [];
+  topTracks: DisplayableTrack[] = [];
 
   public init() {
     setInterval(() => {
@@ -66,20 +70,31 @@ export default class LastFM {
   }
 
   public update() {
+    console.log('updating LastFM data...');
+
     this.doLastFMRequest<LastFMTopTracksResponse>('user.gettoptracks', `user=Fisch03&period=1month`)
     .then(data => {
       this.topTracks = [];
       data.toptracks.track.forEach(async (track) => {
-        let trackData: TrackData = {
-          name: track.name,
-          artist: track.artist.name,
-        };
+        let trackData: TrackData = new TrackData(track.name, track.artist.name);
         
-        trackData = await this.TrackDB.fillTrackData(trackData);
+        trackData = await this.TrackDB.fillData<TrackData>(trackData);
 
         trackData.playcount = track.playcount;
 
-        this.topTracks.push(trackData);
+        let displayedTrack: DisplayableTrack = trackData;
+        if(trackData.albumId) {
+          let album = await this.TrackDB.getAlbumFromID(trackData.albumId);
+          if(album) displayedTrack.cover = album.cover;
+        }
+
+        this.topTracks.push(displayedTrack);
+
+        this.topTracks.sort((a, b) => {
+          if(!a.playcount) return 1;
+          if(!b.playcount) return -1;
+          return Number(b.playcount) - Number(a.playcount);
+        });
       });
     });
   }

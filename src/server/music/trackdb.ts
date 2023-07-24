@@ -2,56 +2,87 @@ import Database from 'better-sqlite3';
 
 import MusicBrainz from './musicbrainz.js';
 
-import { TrackData } from "./tracktypes.js";
+import { Playable, PlayableType, TrackData, AlbumData } from "./tracktypes.js";
 
-type DBTrackData = TrackData | undefined;
-interface QueueItem extends TrackData {
-  resolve: (track: TrackData) => void;
-  reject: (reason: any) => void;
+type DBPlayable <T extends Playable> = T | undefined;
+
+interface QueueItem<T extends Playable> extends Playable {
+  retryCount?: number;
+  resolve?: (result: T) => void;
+  reject?: (reason: any) => void;
 }
 
 export default class TrackDB {
   db = new Database('db/cache.db');
-  apiQueue: QueueItem[] = [];
+  apiQueue: QueueItem<any>[] = [];
 
   constructor() {
     this.db.pragma('journal_mode = WAL');
 
-    this.db.exec('CREATE TABLE IF NOT EXISTS tracks (id INTEGER PRIMARY KEY, mbid TEXT, name TEXT, artist TEXT, album TEXT, cover TEXT)');
+    this.db.exec(`CREATE TABLE IF NOT EXISTS ${PlayableType.Album}s (
+      id INTEGER PRIMARY KEY,
+      mbid TEXT,
+
+      name TEXT,
+      artist TEXT,
+
+      cover TEXT
+    )`);
+
+    this.db.exec(`CREATE TABLE IF NOT EXISTS ${PlayableType.Track}s (
+      id INTEGER PRIMARY KEY, 
+      mbid TEXT, 
+
+      name TEXT, 
+      artist TEXT,
+
+      albumId INTEGER,
+      FOREIGN KEY(albumId) REFERENCES ${PlayableType.Album}s(id)
+    )`);
   }
 
-  async fillTrackData(trackData: TrackData) : Promise<TrackData> {
-    let track: DBTrackData;
+  async fillData<T extends Playable>(playable: T) : Promise<T> {
+    let res: DBPlayable<T>;
 
-    if(trackData.internalId) track = this.getFromID(trackData.internalId);
-    if(!track)               track = this.getFromName(trackData.name, trackData.artist);
-    if(!track)               track = await this.fetchNew(trackData);
+    res = this.fillFromDB<T>(playable);
+    if(!res)        res = await this.fetchNew<T>(playable);
 
-    return track;
+    if(!res) return playable;
+    else     return res;
   }
 
-  async fetchNew(trackData: TrackData) : Promise<TrackData> {
-    let queueItem = trackData as QueueItem;
+  async fetchNew<T extends Playable>(playable: T) : Promise<T> {
+    let queueItem = playable as QueueItem<T>;
     
     return new Promise((resolve, reject) => {
-      queueItem.resolve = (track: TrackData) => {
-        this.db.prepare('INSERT INTO tracks (mbid, name, artist, album, cover) VALUES (?, ?, ?, ?, ?)')
-        .run(track.mbid, track.name, track.artist, track.album, track.cover);
+      queueItem.retryCount = 0;
 
-        let dbTrack = this.getFromName(queueItem.name, queueItem.artist);
+      queueItem.resolve = (newItem: T) => {
+        let rowid = this.insertPlayable<T>(newItem);
 
-        if(!dbTrack) throw new Error('Failed to fetch track from database');
-        resolve(dbTrack);
+        let result = this.db.prepare(`SELECT * FROM ${newItem.type}s WHERE id = ?`).get(rowid) as T;
+        resolve(result);
       };
 
-      queueItem.reject = reject;
+      queueItem.reject = (reason: string) => {
+        if(!queueItem.retryCount) queueItem.retryCount = 0;
 
-      this.addToQueue(queueItem);
+        if(queueItem.retryCount < 3) {
+          queueItem.retryCount++;
+          console.log(`Failed to process ${queueItem.type}: ${reason} Retrying...`);
+          this.addToQueue<T>(queueItem);
+          return;
+        } else {
+          reject(`Failed to insert ${queueItem.type} into database: ${reason}`);
+        }
+      }
+
+      this.addToQueue<T>(queueItem);
     });
   }
 
   /* --- API Queue Functions --- */
-  private addToQueue(queueItem: QueueItem) {
+  private addToQueue<T extends Playable>(queueItem: QueueItem<T>) {
     this.apiQueue.push(queueItem);
     if(this.apiQueue.length == 1) this.processQueue();
   }
@@ -60,11 +91,31 @@ export default class TrackDB {
     let queueItem = this.apiQueue[0];
     if(!queueItem) return;
 
-    console.log(`Processing queue | total: ${this.apiQueue.length} | current: ${queueItem.name} - ${queueItem.artist}`);
+    console.log(`Processing queue | total: ${this.apiQueue.length} | current: ${queueItem.type} - ${queueItem.name}`);
 
-    let track = await MusicBrainz.searchTrack(queueItem.name, queueItem.artist);
+    let res: Playable | undefined;
+    switch(queueItem.type) {
+      case PlayableType.Track:
+        let track = queueItem as TrackData;
+        res = await MusicBrainz.searchTrack(track, (album: AlbumData) => {
+          if(album.mbid) {
+            let albumByMBID = this.getAlbumFromMBID(album.mbid);
+            if(albumByMBID) return albumByMBID.id;
+          }
 
-    queueItem.resolve(track);
+          console.log(`    Inserting new album "${album.name}" into database...`);
+
+          return Number(this.insertPlayable<AlbumData>(album));
+        });
+        break;
+    }
+
+    if(!res) {
+      if(queueItem.reject) queueItem.reject(`Failed to fetch info from API`);
+    } 
+    else {
+      if(queueItem.resolve) queueItem.resolve(res);
+    }
 
     this.apiQueue.shift();
     if(this.apiQueue.length > 0) setTimeout(() => this.processQueue(), 1200); // Timeout is 1 second min + some some safety margin
@@ -72,11 +123,58 @@ export default class TrackDB {
   }
 
   /* --- Database Functions --- */
-  private getFromID(id: number) : DBTrackData {
-    return this.db.prepare('SELECT * FROM tracks WHERE id = ?').get(id) as DBTrackData;
+  private insertPlayable<T extends Playable>(playable: T) : number | bigint {
+    switch(playable.type) {
+      case 'track':
+        let track = playable as unknown as TrackData;
+        return this.db.prepare('INSERT INTO tracks (mbid, name, artist, albumId) VALUES (?, ?, ?, ?)')
+               .run(track.mbid, track.name, track.artist, track.albumId).lastInsertRowid;
+      case 'album':
+        let album = playable as unknown as AlbumData;
+        return this.db.prepare('INSERT INTO albums (mbid, name, artist, cover) VALUES (?, ?, ?, ?)')
+                .run(album.mbid, album.name, album.artist, album.cover).lastInsertRowid;
+
+      default:
+        throw new Error('Playable type not set');
+    }
   }
 
-  private getFromName(name: string, artist: string) : DBTrackData {
-    return this.db.prepare('SELECT * FROM tracks WHERE name = ? AND artist = ?').get(name, artist) as DBTrackData;
+  private fillFromDB<T extends Playable>(playable: T) : DBPlayable<T> {
+    let res: DBPlayable<T>;
+
+    if(playable.id) res = this.fillFromID(playable);
+    if(!res)        res = this.fillFromName(playable);
+
+    
+    if(res) {
+      res = {
+        ...playable,
+        ...res,
+      }
+    }
+    return res;
   }
+
+  private fillFromID<T extends Playable>(playable: T) : DBPlayable<T> {
+    if(!playable.type) throw new Error('Playable type not set');
+
+    return this.db.prepare(`SELECT * FROM ${playable.type}s WHERE id = ?`).get(playable.id) as DBPlayable<T>;
+  }
+
+  private fillFromName<T extends Playable>(playable: T) : DBPlayable<T> {
+    if(!playable.type) throw new Error('Playable type not set');
+
+    if('artist' in playable && playable.artist)
+      return this.db.prepare(`SELECT * FROM ${playable.type}s WHERE name = ? AND artist = ?`).get(playable.name, playable.artist) as DBPlayable<T>;
+    else
+      return this.db.prepare(`SELECT * FROM ${playable.type}s WHERE name = ?`).get(playable.name) as DBPlayable<T>;
+  }
+
+  getAlbumFromID(id: number) : DBPlayable<AlbumData> {
+    return this.db.prepare('SELECT * FROM albums WHERE id = ?').get(id) as DBPlayable<AlbumData>;
+  }
+  getAlbumFromMBID(mbid: string) : DBPlayable<AlbumData> {
+    return this.db.prepare('SELECT * FROM albums WHERE mbid = ?').get(mbid) as DBPlayable<AlbumData>;
+  }
+
 }

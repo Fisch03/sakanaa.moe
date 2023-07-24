@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-import { TrackData } from "./tracktypes.js";
+import { AlbumData, TrackData } from "./tracktypes.js";
 
 interface Release {
   id: string;
@@ -25,23 +25,23 @@ interface RecordingResponse { recordings: Recording[]; }
 
 
 export default class MusicBrainz {
-  static async searchTrack(name: string, artist: string) : Promise<TrackData>{
-    let res: TrackData = { name: name, artist: artist };
+  static async searchTrack(track: TrackData, createAlbum: (album: AlbumData) => number | undefined) : Promise<TrackData | undefined>{
+    let res: TrackData = new TrackData(track.name, track.artist);
 
-    let query = `recording:"${name}" AND artist:"${artist}"`;
+    let query = `recording:"${track.name}" AND artist:"${track.artist}"`;
     let response = await this.doRequest('recording', query) as RecordingResponse;
 
     // Try to find recordings when the artist name contains something like "feat. ..., & ... etc."
-    let artistsSplit = artist.split(' ');
+    let artistsSplit = track.artist.split(' ');
     if(response.recordings.length == 0 && artistsSplit.length > 1) {
       let artistLoose = artistsSplit[0];
       console.log(`    Trying to find recording with artist "${artistLoose}"...`);
-      response = await this.doRequest('recording', `recording:"${name}" AND artist:"${artistLoose}"`) as RecordingResponse;
+      response = await this.doRequest('recording', `recording:"${track.name}" AND artist:"${artistLoose}"`) as RecordingResponse;
     }
     if(response.recordings.length == 0 && artistsSplit.length > 1) {
       let artistLoose = artistsSplit[artistsSplit.length - 1];
       console.log(`    Trying to find recording with artist "${artistLoose}"...`);
-      response = await this.doRequest('recording', `recording:"${name}" AND artist:"${artistLoose}"`) as RecordingResponse;
+      response = await this.doRequest('recording', `recording:"${track.name}" AND artist:"${artistLoose}"`) as RecordingResponse;
     }
 
     let recording = response.recordings[0];
@@ -88,14 +88,20 @@ export default class MusicBrainz {
       return res;
     }
 
-    res.album = release.title;
-
-    if(await this.checkForCover('release-group', release['release-group'].id))
-      res.cover = `https://coverartarchive.org/release-group/${release['release-group'].id}/front-250`;
-    else if(await this.checkForCover('release', release.id))
-      res.cover = `https://coverartarchive.org/release/${release.id}/front-250`;
+    if(track.albumId) res.albumId = track.albumId;
     else {
-      console.log(`    No cover found...`);
+      let newAlbum = new AlbumData(release.title, track.artist);
+      newAlbum.mbid = release['release-group'].id;
+
+      if(await this.checkForCover('release-group', release['release-group'].id))
+        newAlbum.cover = `https://coverartarchive.org/release-group/${release['release-group'].id}/front-250`;
+      else if(await this.checkForCover('release', release.id))
+        newAlbum.cover = `https://coverartarchive.org/release/${release.id}/front-250`;
+      else {
+        console.log(`    No cover found...`);
+      }
+
+      res.albumId = createAlbum(newAlbum);
     }
 
     return res;
