@@ -9,7 +9,7 @@ function fetchlastfm() {
     console.log(data);
 
     let content = '';
-    data.forEach(song => {
+    data.topTracks.forEach(song => {
       content += `
       ${song.link!=undefined?`<a href=${song.link}>`:""}
         <div class="song">

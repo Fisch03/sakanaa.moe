@@ -45,7 +45,7 @@ export default class TrackDB {
     let res: DBPlayable<T>;
 
     res = this.fillFromDB<T>(playable);
-    if(!res)        res = await this.fetchNew<T>(playable);
+    if(!res) res = await this.fetchNew<T>(playable);
 
     if(!res) return playable;
     else     return res;
@@ -57,10 +57,12 @@ export default class TrackDB {
     return new Promise((resolve, reject) => {
       queueItem.retryCount = 0;
 
-      queueItem.resolve = (newItem: T) => {
-        let rowid = this.insertPlayable<T>(newItem);
+      queueItem.resolve = (newItem: T | number) => {
+        let rowid: number | bigint;
+        if(typeof newItem == 'number') rowid = newItem;
+        else rowid = this.insertPlayable<T>(newItem);
 
-        let result = this.db.prepare(`SELECT * FROM ${newItem.type}s WHERE id = ?`).get(rowid) as T;
+        let result = this.db.prepare(`SELECT * FROM ${playable.type}s WHERE id = ?`).get(rowid) as T;
         resolve(result);
       };
 
@@ -93,11 +95,11 @@ export default class TrackDB {
 
     console.log(`Processing queue | total: ${this.apiQueue.length} | current: ${queueItem.type} - ${queueItem.name}`);
 
-    let res: Playable | undefined;
+    let res: Playable | number | undefined;
     switch(queueItem.type) {
       case PlayableType.Track:
         let track = queueItem as TrackData;
-        res = await MusicBrainz.searchTrack(track, (album: AlbumData) => {
+        res = await MusicBrainz.searchTrack(track, this, (album: AlbumData) => {
           if(album.mbid) {
             let albumByMBID = this.getAlbumFromMBID(album.mbid);
             if(albumByMBID) return albumByMBID.id;
@@ -107,6 +109,15 @@ export default class TrackDB {
 
           return Number(this.insertPlayable<AlbumData>(album));
         });
+        break;
+      
+      case PlayableType.Album:
+        let album = queueItem as AlbumData;
+        res = await MusicBrainz.searchAlbum(album);
+        if(res?.mbid) {
+          let albumByMBID = this.getAlbumFromMBID(res.mbid);
+          if(albumByMBID) res = albumByMBID.id;
+        }
         break;
     }
 

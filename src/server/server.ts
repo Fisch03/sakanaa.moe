@@ -37,7 +37,7 @@ setInterval(() => {
 const lastfm = new LastFM();
 lastfm.init();
 app.get("/api/lastfm", (req, res) => {
-  res.json(lastfm.getTracks());
+  res.json(lastfm.Tops);
 });
 
 app.listen(port, () => {

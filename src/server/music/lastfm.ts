@@ -4,62 +4,46 @@ dotenv.config();
 import fetch from "node-fetch";
 
 import TrackDB from "./trackdb.js";
-import { AlbumData, TrackData } from "./tracktypes.js";
-
-/*
-import SpotifyWebApi from "spotify-web-api-node";
-
-let spotify = new SpotifyWebApi({
-  clientId: process.env.SPOTIFYID,
-  clientSecret: process.env.SPOTIFYKEY
-});
-spotify.clientCredentialsGrant().then(
-  function(data) {
-    spotify.setAccessToken(data.body.access_token);
-  },
-  function(err) {
-    console.log('Something went wrong when retrieving an access token', err);
-  }
-)
-*/
+import { AlbumData, Playable, TrackData } from "./tracktypes.js";
 
 interface LastFMTopTracksResponse {
   toptracks: {
     track: {
       name: string;
       playcount: number;
+      mbid: string;
       artist: {
         name: string;
+        mbid: string;
       };
     }[];
   };
 }
 
-interface DisplayableTrack extends TrackData {
-  cover?: string;
-}
-
-/*
-interface SpotifySearchResponse {
-  tracks: {
-    items: {
-      album: {
-        external_urls: {
-          spotify: string;
-        };
-        images: {
-          url: string;
-        }[];
+interface LastFMTopAlbumsResponse {
+  topalbums: {
+    album: {
+      name: string;
+      playcount: number;
+      mbid: string;
+      artist: {
+        name: string;
+        mbid: string;
       };
     }[];
   };
 }
-*/
+
+interface DisplayableTrack extends TrackData { cover?: string; }
+interface DisplayableAlbum extends AlbumData { }
+type Displayables = DisplayableTrack | DisplayableAlbum;
+
 
 export default class LastFM {
   TrackDB = new TrackDB();
   
   topTracks: DisplayableTrack[] = [];
+  topAlbums: DisplayableAlbum[] = [];
 
   public init() {
     setInterval(() => {
@@ -77,6 +61,7 @@ export default class LastFM {
       this.topTracks = [];
       data.toptracks.track.forEach(async (track) => {
         let trackData: TrackData = new TrackData(track.name, track.artist.name);
+        if(track.mbid && track.mbid != "") trackData.mbid = track.mbid;
         
         trackData = await this.TrackDB.fillData<TrackData>(trackData);
 
@@ -90,35 +75,45 @@ export default class LastFM {
 
         this.topTracks.push(displayedTrack);
 
-        this.topTracks.sort((a, b) => {
-          if(!a.playcount) return 1;
-          if(!b.playcount) return -1;
-          return Number(b.playcount) - Number(a.playcount);
-        });
+        this.sortByPlaycount<DisplayableTrack>(this.topTracks);
+      });
+    });
+
+    this.doLastFMRequest<LastFMTopAlbumsResponse>('user.gettopalbums', `user=Fisch03&period=1month`)
+    .then(data => {
+      this.topAlbums = [];
+      data.topalbums.album.forEach(async (album) => {
+        let albumData: AlbumData = new AlbumData(album.name, album.artist.name);
+        if(album.mbid && album.mbid != "") albumData.mbid = album.mbid;
+        
+        albumData = await this.TrackDB.fillData<AlbumData>(albumData);
+
+        albumData.playcount = album.playcount;
+
+        let displayedAlbum: DisplayableAlbum = albumData;
+        this.topAlbums.push(displayedAlbum);
+
+        this.sortByPlaycount<DisplayableAlbum>(this.topAlbums);
       });
     });
   }
 
-  /*
-  updateCovers() {
-    this.topTracks.forEach(track => {
-      if(LastFM.coverCache.has(track)) {
-        track.cover = LastFM.coverCache.get(track);
-      } else {
-        this.doSpotifyRequest(track)
-        .then(data => {
-          if(data.tracks.items.length > 0) {
-            track.cover = data.tracks.items[0].album.images[0].url;
-            track.link = data.tracks.items[0].album.external_urls.spotify;
-            LastFM.coverCache.set(track, data.tracks.items[0].album.images[0].url);
-          }
-        })
-      }
+  get Tops() {
+    return {
+      topTracks: this.topTracks,
+      topAlbums: this.topAlbums,
+    }
+  }
+
+  private sortByPlaycount<T extends Displayables>(displayables: T[]) {
+    displayables.sort((a, b) => {
+      if(!a.playcount) return 1;
+      if(!b.playcount) return -1;
+      return Number(b.playcount) - Number(a.playcount);
     });
   }
-  */
 
-  doLastFMRequest<T>(method: string, params: string) {
+  private doLastFMRequest<T>(method: string, params: string) {
     return new Promise<T>((resolve, reject) => {
       fetch('https://ws.audioscrobbler.com/2.0/', {
         method: 'POST',
@@ -133,20 +128,7 @@ export default class LastFM {
         resolve(response.json() as Promise<T>);
       });
     });
-  }	
-
-  /*
-  doSpotifyRequest(track: Track) {
-    return new Promise<SpotifySearchResponse>((resolve, reject) => {
-      spotify.searchTracks(`artist:${track.artist} ${track.name}`)
-      .then(data => {
-        resolve(data.body as SpotifySearchResponse);
-      });
-    });
   }
-  */
 
-  getTracks(): TrackData[] {
-    return this.topTracks;
-  }
+  
 }
