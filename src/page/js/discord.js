@@ -7,13 +7,12 @@ function updateDiscord() {
   fetch('https://api.lanyard.rest/v1/users/431374517462499328')
     .then(res => res.json())
     .then(data => {
-      console.log(data);
       data = data.data;
       let avatar = `https://cdn.discordapp.com/avatars/${data.discord_user.id}/${data.discord_user.avatar}.png`;
       document.getElementById('DiscordAvatar').src = avatar;
       document.getElementById('DiscordName').innerText = `${data.discord_user.username}`
       if(data.discord_status == 'offline') {
-        document.getElementById('DiscordActivity').innerHTML = '<h2 style="width: 100%; text-align:center">Offline</h2>';
+        document.getElementById('DiscordActivity').innerHTML = '<div style="width: 100%; height: 90%; display:flex; justify-content: center; align-items:center;"><h2>Offline</h2></div>';
       } else if(data.listening_to_spotify) {
         document.getElementById('DiscordActivity').innerHTML = `
         <a href="https://open.spotify.com/track/${data.spotify.track_id}">
@@ -21,7 +20,8 @@ function updateDiscord() {
           <div>
             <h3><img style="display: inline-block; width: 20px; margin-right:4px;" class="bounce colorfilter" src="/assets/notespin.png">im listening to</h3>
             <h2 style="max-width: 20rem; margin-bottom: 5px">${data.spotify.song}</h2>
-            <h4 style="max-width: 20rem; margin-top: 0">${data.spotify.artist}</h4>
+            <h4 style="max-width: 20rem; margin-top: 0; margin-bottom: 0">from ${data.spotify.artist}</h4>
+            <h4 style="max-width: 20rem; margin-top: 0">on ${data.spotify.album}</h4>
           </div>
         </a>
         `
@@ -61,7 +61,7 @@ function updateDiscord() {
           `
         }
       } else {
-        document.getElementById('DiscordActivity').innerHTML = '<h3 style="width: 100%; text-align:center">looks like i\'m not doing anything right now...</h3>';
+        document.getElementById('DiscordActivity').innerHTML = '<div style="width: 100%; height: 90%; display:flex; justify-content: center; align-items:center;"><h3>looks like i\'m not doing anything right now...</h3></div>';
       }
     }) 
 }

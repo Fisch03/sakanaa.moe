@@ -93,9 +93,19 @@ th {
 tr {
   vertical-align: top;
 }
+button {
+  border: none;
+  background-color: var(--bg-color);
+  color: var(--fg-color);
+  font-family: pixel;
+  cursor: var(--cursor-hover), auto;
+}
 
 
 /* Utility classes */
+.clickable {
+  cursor: var(--cursor-hover), auto;
+}
 .shadow {
   filter: drop-shadow(7px 7px 0 var(--fg-color));
 }
@@ -209,6 +219,9 @@ tr {
 #MainColumn > div > .sectioncontent, #MainColumn > div > a > .sectioncontent { 
   padding-right: 4vw;
 }
+#MainColumn > div > .sectioncontent.hastabs, #MainColumn > div > a > .sectioncontent.hastabs { 
+  padding-right: 0;
+}
 
 .container {
   border-radius: 3rem;
@@ -224,7 +237,7 @@ tr {
 .vertical {
   display: flex;
   align-content: space-between;
-  min-height: 8rem;
+  min-height: 7rem;
   width: 100%;
 }
 
@@ -251,8 +264,7 @@ tr {
 .vertical > .sectionheader {
   border-radius: 3rem 0 0 3rem;
   border-right: 1px solid var(--fg-color);
-  height: 100%;
-  max-height: 100%;
+  min-height: 7rem;
   width: 5rem;
   padding: 0;
   justify-content: center;
@@ -264,6 +276,10 @@ tr {
   transform-origin: 50% 50%;
 }
 
+.vertical > .sectioncontent {
+  min-height: 7rem;
+}
+
 .sectionheader > h2, .sectionheader > h2 > span {
   border-radius: 0.5rem;
   padding: .4rem;
@@ -271,27 +287,61 @@ tr {
   margin: 0;
 }
 
-.sectioncontent {
+.sectioncontent, .sectioncontent.hastabs > .tabinner {
   padding: .7rem 1.5rem;
  
   height: calc(100% - 9rem);
   /*overflow-wrap: break-word;*/
   hyphens: auto;
 }
-.sectioncontent > h2 {
+
+.sectioncontent.hastabs {
+  padding: 0;
+}
+
+.sectioncontent > h2, .sectioncontent.hastabs > .tabinner > h2 {
   margin: 0;
 }
-.vertical > .sectioncontent, .vertical > a {
+.vertical > .sectioncontent, .vertical > a, .vertical > .sectioncontent.hastabs > .tabinner {
   float: left;
   height: 100%;
   width: calc(100% - 6rem);
   padding:0;
   transform: translateX(.5rem);
 }
-.vertical > a > .sectioncontent {
+.vertical > a > .sectioncontent, .vertical > a >.sectioncontent.hastabs > .tabinner {
   width: 100%;
   padding: 0;
   height: 100%;
+}
+
+.tabs {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 1rem;
+  padding: 0;
+  margin: 0;
+  height: 3rem;
+  width: 100%;
+  border-radius: 3rem 3rem 0 0;
+  border-bottom: 1px solid var(--fg-color);
+}
+.tabs > button {
+  padding: .5rem 1rem;
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.tabs > .tabsindicator {
+  position: absolute;
+  left: 0;
+  height: 3px;
+  background-color: var(--fg-color);
+  transition: left 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transform: translate(0, calc(1.5rem - 50%));
 }
 
 /* Discord */
@@ -304,9 +354,9 @@ tr {
   display: flex;
   gap: 1rem;
   justify-content: flex-start;
-  align-content: center;
-  padding: 0 .5rem 0 .5rem;
-  height: 12rem;
+  align-items: center;
+  padding: 0 .5rem .5rem .5rem;
+  min-height: 12rem;
   transform: translateY(.4rem);
 }
 
@@ -330,13 +380,13 @@ tr {
   overflow: hidden;
 }
 
-#Music > .sectioncontent {
+#Music > .sectioncontent > #MusicListContent {
   height: 40vh;
   overflow-y: auto;
   border-radius: 0rem 0rem 3rem 3rem;
 }
 
-#Music > .sectioncontent > div, #Music > .sectioncontent > a > div {
+#Music > .sectioncontent > #MusicListContent > div, #Music > .sectioncontent > #MusicListContent > a > div {
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -349,7 +399,7 @@ tr {
 }
 
 /* Uptime */
-#Uptime > a > .sectioncontent {
+#Uptime > .sectioncontent {
   display: flex;
   flex-direction: column;
   align-items: center;

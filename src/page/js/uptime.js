@@ -4,6 +4,7 @@ function fetchUpTime() {
   fetch('/api/uptime')
   .then(res => res.json())
   .then(data => {
+    data.monitors = data.monitors.filter(element => element.status != 0);
     let avgUptime = 0;
     let up = 0;
     data.monitors.forEach(element => {
