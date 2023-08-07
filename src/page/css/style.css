@@ -217,7 +217,7 @@ button {
 
 /* prevent text from being under the waifu ;) */
 #MainColumn > div > .sectioncontent, #MainColumn > div > a > .sectioncontent { 
-  padding-right: 4vw;
+  padding-right: 1.5vw;
 }
 #MainColumn > div > .sectioncontent.hastabs, #MainColumn > div > a > .sectioncontent.hastabs { 
   padding-right: 0;
@@ -234,9 +234,9 @@ button {
   gap: 2rem;
 }
 
-.vertical {
+.container.vertical {
   display: flex;
-  align-content: space-between;
+  align-items: stretch;
   min-height: 7rem;
   width: 100%;
 }
@@ -261,23 +261,18 @@ button {
   justify-content: space-evenly;
 }
 
-.vertical > .sectionheader {
+.container.vertical > .sectionheader {
   border-radius: 3rem 0 0 3rem;
   border-right: 1px solid var(--fg-color);
   min-height: 7rem;
   width: 5rem;
   padding: 0;
-  justify-content: center;
-  align-items: center;
-  gap: 0;
+  height: unset;
+  max-height: unset;
 }
-.vertical > .sectionheader > h2 {
+.container.vertical > .sectionheader > h2 {
   transform: rotate(-90deg);
   transform-origin: 50% 50%;
-}
-
-.vertical > .sectioncontent {
-  min-height: 7rem;
 }
 
 .sectionheader > h2, .sectionheader > h2 > span {
@@ -293,6 +288,9 @@ button {
   height: calc(100% - 9rem);
   /*overflow-wrap: break-word;*/
   hyphens: auto;
+  overflow:hidden;
+
+  position: relative;
 }
 
 .sectioncontent.hastabs {
@@ -302,14 +300,13 @@ button {
 .sectioncontent > h2, .sectioncontent.hastabs > .tabinner > h2 {
   margin: 0;
 }
-.vertical > .sectioncontent, .vertical > a, .vertical > .sectioncontent.hastabs > .tabinner {
+.container.vertical > .sectioncontent, .container.vertical > a, .container.vertical > .sectioncontent.hastabs > .tabinner {
   float: left;
   height: 100%;
-  width: calc(100% - 6rem);
+  width: 100%;
   padding:0;
-  transform: translateX(.5rem);
 }
-.vertical > a > .sectioncontent, .vertical > a >.sectioncontent.hastabs > .tabinner {
+.container.vertical > a > .sectioncontent, .container.vertical > a >.sectioncontent.hastabs > .tabinner {
   width: 100%;
   padding: 0;
   height: 100%;
@@ -327,9 +324,29 @@ button {
   border-radius: 3rem 3rem 0 0;
   border-bottom: 1px solid var(--fg-color);
 }
+.tabs.vertical {
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: right;
+  gap: 0rem;
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  border-radius: 0 3rem 3rem 0;
+  border-bottom: unset;
+}
+
 .tabs > button {
   padding: .5rem 1rem;
   height: 100%;
+  width: 100%;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.tabs.vertical > button {
+  padding: 0;
+  height: 2rem;
   width: 100%;
   margin: 0;
   font-size: 1rem;
@@ -343,9 +360,16 @@ button {
   transition: left 0.2s ease-in-out, opacity 0.2s ease-in-out;
   transform: translate(0, calc(1.5rem - 50%));
 }
+.tabs.vertical > .tabsindicator {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  background-color: var(--fg-color);
+  transition: top 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  transform: translate(0);
+}
 
 /* Discord */
-
 #DiscordActivity {
   transform: translate(0, -7px);
 }
@@ -373,7 +397,6 @@ button {
   border-width: calc(min(5px, max(4px,.8vh)));
 }
 
-
 /* Music */
 #Music {
   max-height: 150rem;
@@ -400,6 +423,7 @@ button {
 
 /* Uptime */
 #Uptime > .sectioncontent {
+  min-height: 7rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -435,12 +459,6 @@ button {
 }
 
 /* Mobile and smaller screens */
-@media screen and (max-width: 1900px) {
-  #BigWaifu > img {
-    transform: translate(66vw,0);
-  }
-}
-
 @media screen and (max-width: 1550px) {
   #BigWaifu > img {
     transform: translate(60vw,0);
@@ -460,7 +478,7 @@ button {
   }
 
   .hideonmobile {
-    display: none;
+    display: none !important;
   }
 }
 
