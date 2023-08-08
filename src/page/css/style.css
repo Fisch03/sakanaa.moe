@@ -225,6 +225,7 @@ button {
 
 .container {
   border-radius: 3rem;
+  overflow: hidden;
 }
 
 .horizontaldivider {
@@ -242,7 +243,7 @@ button {
 }
 
 .sectionheader {
-  border-radius: 3rem 3rem 0 0;
+  /*border-radius: 3rem 3rem 0 0;*/
   border-bottom: 1px solid var(--fg-color);
   display: flex;
   justify-content: space-between;
@@ -282,14 +283,31 @@ button {
   margin: 0;
 }
 
+.columnsection > .container {
+  border-radius: 0rem;
+  border-bottom: 0;
+}
+.columnsection > .container:first-child {
+  border-radius: 3rem 3rem 0 0;
+}
+.columnsection > .container:last-child {
+  border-radius: 0 0 3rem 3rem;
+  border-bottom: 1px solid var(--fg-color);
+}
+.columnsection > .container > .sectionheader {
+  height: 4vh;
+  min-height: 2rem;
+}
+.columnsection > .container:first-child > .sectionheader {
+  height: 10vh;
+  min-height: 3rem;
+}
+
 .sectioncontent, .sectioncontent.hastabs > .tabinner {
   padding: .7rem 1.5rem;
  
   height: calc(100% - 9rem);
-  /*overflow-wrap: break-word;*/
   hyphens: auto;
-  overflow:hidden;
-
   position: relative;
 }
 
@@ -398,18 +416,17 @@ button {
 }
 
 /* Music */
-#Music {
+#RecentlyPlayed {
   max-height: 150rem;
-  overflow: hidden;
 }
 
-#Music > .sectioncontent > #MusicListContent {
+#RecentlyPlayed > .sectioncontent > #MusicListContent {
   height: 40vh;
   overflow-y: auto;
   border-radius: 0rem 0rem 3rem 3rem;
 }
 
-#Music > .sectioncontent > #MusicListContent > div, #Music > .sectioncontent > #MusicListContent > a > div {
+#RecentlyPlayed > .sectioncontent > #MusicListContent > div, #RecentlyPlayed > .sectioncontent > #MusicListContent > a > div {
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -419,6 +436,56 @@ button {
 
 .song {
   flex-grow: 1;
+}
+
+/* Microblog */
+#Microblogging {
+  max-height: 150rem;
+}
+#Microblogging > .sectioncontent {
+  height: 70vh;
+  overflow-y: auto;
+  border-radius: 0rem 0rem 3rem 3rem;
+}
+.mbpost {
+  display: flex;
+  flex-direction: column;
+
+  padding: .5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--fg-color);
+  transition: background-color 0.2s ease-in-out;
+  margin-bottom: .5rem;
+}
+.mbpostheader {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: .5rem;
+  font-weight: bold;
+  margin-bottom: .5rem;
+}
+.mbpostimages {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .5rem;
+}
+.mbpostimage {
+  width: 50%;
+  height: 20rem;
+  border-radius: 1rem;
+  margin-bottom: .5rem;
+  object-fit: cover;
+}
+.mbemoji {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+  vertical-align: middle;
 }
 
 /* Uptime */

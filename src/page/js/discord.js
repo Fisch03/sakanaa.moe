@@ -29,9 +29,10 @@ function updateDiscord() {
         let musicactivity = data.activities.find(activity => activity.name == 'MusicBee');
 
         if(musicactivity) {
-            let data = musicactivity.details.split(' - ');
-            let artist = data[0];
-            let song = musicactivity.state;//data[1];
+            let artist = musicactivity.state.split(' on ');
+            artist.pop();
+            artist = artist.join(' on ');
+            let song = musicactivity.details;
             let image = musicactivity.assets.large_image.startsWith('mp:external/')
               ? `https://media.discordapp.net/external/${musicactivity.assets.large_image.replace("mp:external/", "")}` 
               : `https://cdn.discordapp.com/app-assets/${musicactivity.application_id}/${musicactivity.assets.large_image}.webp`;

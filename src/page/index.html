@@ -45,12 +45,14 @@
           <div class="sectioncontent tabs vertical">
             <button data-target="AboutMe">about me</button>
             <button data-target="Music">music</button>
+            <button data-target="Microblogging">microblogging</button>
             <button data-target="Hardware">hardware</button>
             <button data-target="Uptime">uptime</button>
           </div>
         </div>
       </div>
         <div class="column" id="MainColumn">
+          <!-- ABOUT ME -->
           <div id="AboutMe" class="container background inv-shadow border">
             <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
               <h2 class="background">about me</h2>
@@ -72,22 +74,64 @@
               <p>feel free to scroll down and check out more stuff about me! <span class="hideonmobile">(or just use the buttons on the left)</p>
             </div>
           </div>
-          <div id="Music" class="container background inv-shadow border">
-            <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
-              <h2 class="background">what i've been listening to</h2>
-            </div>
-            <div id="MusicList" class="sectioncontent hastabs">
-              <div class="tabs">
-                <button onclick="showlastfm('Album' )">albums </button>
-                <button onclick="showlastfm('Track' )">tracks </button>
-                <button onclick="showlastfm('Artist')">artists</button>
+          
+          <!-- MUSIC -->
+          <div class="columnsection">
+            <div id="Music" class="container background inv-shadow border">
+              <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
+                <h2 class="background">music</h2>
               </div>
-              <div id="MusicListContent" class="tabinner">
-                Loading...
-                <!--Automatically filled by js-->
+              <div class="sectioncontent">
+                <p>i would generally say that i enjoy all sorts of music. the genres i enjoy the most though are
+                  <ul>
+                    <li>vocaloid</li>
+                    <li>j-pop</li>
+                    <li>eurobeat</li>
+                    <li>hardcore</li>
+                    <li>
+                      various subgenres of breakcore, especially
+                      <ul>
+                        <li>mashcore/dancecore</li>
+                        <li>lolicore</li>
+                        <li>speedcore</li>
+                      </ul>
+                    </li>
+                    <li>hyperflip (or dariacore, whatever you wanna call it)</li>
+
+                    <li>jazz-fusion</li>
+                    <li>bossa nova</li>
+                  </ul>
+                </p>
+              </div>
+            </div>
+            <div id="RecentlyPlayed" class="container background inv-shadow border">
+              <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
+                <h2 class="background">what i've been listening to</h2>
+              </div>
+              <div id="MusicList" class="sectioncontent hastabs">
+                <div class="tabs">
+                  <button onclick="showlastfm('Album' )">albums </button>
+                  <button onclick="showlastfm('Track' )">tracks </button>
+                  <button onclick="showlastfm('Artist')">artists</button>
+                </div>
+                <div id="MusicListContent" class="tabinner">
+                  Loading...
+                  <!--Automatically filled by js-->
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- MICROBLOGGING -->
+          <div id="Microblogging" class="container background inv-shadow border">
+            <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
+              <h2 class="background">microblogging</h2>
+            </div>
+            <div id="MisskeyNotes" class="sectioncontent">
+            </div>
+          </div>
+
+          <!-- HARDWARE -->
           <div id="Hardware" class="container background inv-shadow border">
             <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
               <h2 class="background">hardware</h2>
@@ -127,6 +171,8 @@
               </table>
             </div>
           </div>
+
+          <!-- UPTIME -->
           <div id="Uptime" class="container background inv-shadow border vertical">
             <div style="background-image: url('assets/dither/bgdither2x.png');" class="sectionheader ditherbg twox">
               <h2 class="background">Uptime</h2>
@@ -153,10 +199,12 @@
   </body>
   <!--build:js-->
   <script src="js/!palettes.js"></script>
-  <script src="js/tabs.js"></script>
   <script src="js/colors.js"></script>
+  <script src="js/tabs.js"></script>
+
   <script src="js/discord.js"></script>
-  <script src="js/uptime.js"></script>
+  <script src="js/misskey.js"></script>
   <script src="js/lastfm.js"></script>
+  <script src="js/uptime.js"></script>
   <!--endbuild-->
 </html>
