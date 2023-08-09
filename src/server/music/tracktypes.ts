@@ -1,6 +1,7 @@
 export enum PlayableType {
   Track = 'track',
   Album = 'album',
+  Artist = 'artist'
 }
 
 export abstract class Playable {
@@ -21,26 +22,42 @@ export abstract class Playable {
 export class TrackData extends Playable {
   type = PlayableType.Track;
 
-  artist: string;
+  artistId?: number;
 
   albumId?: number;
   link?: string;
 
-  constructor(name: string, artist: string) {
+  artistHelperField?: string;
+
+  constructor(name: string, artistName?: string, artistId?: number) {
     super(name);
-    this.artist = artist;
+    this.artistHelperField = artistName;
+    this.artistId = artistId;
   }
 }
 
 export class AlbumData extends Playable {
   type = PlayableType.Album;
 
-  artist: string;
+  artistId?: number;
 
   cover?: string;
 
-  constructor(name: string, artist: string) {
+  artistHelperField?: string;
+
+  constructor(name: string, artistName?: string, artistId?: number) {
     super(name);
-    this.artist = artist;
+    this.artistHelperField = artistName;
+    this.artistId = artistId;
+  }
+}
+
+export class ArtistData extends Playable {
+  type = PlayableType.Artist;
+
+  image?: string;
+
+  constructor(name: string) {
+    super(name);
   }
 }

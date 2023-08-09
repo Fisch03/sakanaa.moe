@@ -1,7 +1,7 @@
 import fetch from 'node-fetch';
 
 import TrackDB from './trackdb.js';
-import { AlbumData, TrackData } from "./tracktypes.js";
+import { AlbumData, TrackData, ArtistData } from "./tracktypes.js";
 
 interface Release {
   id: string;
@@ -22,12 +22,19 @@ interface Recording {
   releases: Release[];
 }
 
+interface Artist {
+  id: string;
+
+  name: string;
+}
+
 interface RecordingResponse { recordings: Recording[]; }
 interface ReleaseResponse   { releases: Release[]; }
+interface ArtistResponse    { artists: Artist[]; }
 
 export default class MusicBrainz {
-  static async searchTrack(track: TrackData, db: TrackDB, createAlbum: (album: AlbumData) => number | undefined) : Promise<TrackData | undefined>{
-    let res: TrackData = new TrackData(track.name, track.artist);
+  static async searchTrack(track: TrackData, artist: ArtistData, db: TrackDB, createAlbum: (album: AlbumData) => number | undefined) : Promise<TrackData | undefined>{ 
+    let res = new TrackData(track.name, artist.name, artist.id);
     
     let recording: any;
     let found = false;
@@ -38,11 +45,11 @@ export default class MusicBrainz {
     }
     
     if(!found) {
-      let query = `?query=recording:"${encodeURIComponent(track.name)}" AND artist:"${encodeURIComponent(track.artist)}"`;
+      let query = `?query=recording:"${encodeURIComponent(track.name)}" AND artist:"${encodeURIComponent(artist.name)}"`;
       let response = await this.doRequest('recording', query) as RecordingResponse;
 
       // Try to find recordings when the artist name contains something like "feat. ..., & ... etc."
-      let artistsSplit = track.artist.split(' ');
+      let artistsSplit = artist.name.split(' ');
       if(response.recordings.length == 0 && artistsSplit.length > 1) {
         let artistLoose = artistsSplit[0];
         console.log(`    Trying to find recording with artist "${artistLoose}"...`);
@@ -107,7 +114,7 @@ export default class MusicBrainz {
 
     if(track.albumId) res.albumId = track.albumId;
     else {
-      let newAlbum = new AlbumData(release.title, track.artist);
+      let newAlbum = new AlbumData(release.title);
       newAlbum.mbid = release['release-group'].id;
 
       if(await this.checkForCover('release-group', release['release-group'].id))
@@ -124,8 +131,8 @@ export default class MusicBrainz {
     return res;
   }
 
-  static async searchAlbum(album: AlbumData) : Promise<AlbumData | undefined> {
-    let res: AlbumData = new AlbumData(album.name, album.artist);
+  static async searchAlbum(album: AlbumData, artist: ArtistData) : Promise<AlbumData | undefined> {
+    let res: AlbumData = new AlbumData(album.name, artist.name, artist.id);
 
     let release: any;
     let found = false;
@@ -135,7 +142,7 @@ export default class MusicBrainz {
     }
 
     if(!found) {
-      let query = `?query=release:"${encodeURIComponent(album.name)}" AND artist:"${encodeURIComponent(album.artist)}"`;
+      let query = `?query=release:"${encodeURIComponent(album.name)}" AND artist:"${encodeURIComponent(artist.name)}"`;
       let response = await this.doRequest('release', query) as ReleaseResponse;
 
       release = response.releases[0];
@@ -154,6 +161,32 @@ export default class MusicBrainz {
     }
 
     return res;	 
+  }
+
+  static async searchArtist(artist: ArtistData) : Promise<ArtistData | undefined> {
+    let res: ArtistData = new ArtistData(artist.name);
+
+    let foundArtist: any;
+    let found = false;
+    if(artist.mbid) {
+      foundArtist = await this.doRequest('artist', `${artist.mbid}?inc=aliases`) as Promise<Artist>;
+      if(foundArtist) found = true;
+    }
+
+    if(!found) {
+      let query = `?query=artist:"${encodeURIComponent(artist.name)}"`;
+      let response = await this.doRequest('artist', query) as ArtistResponse;
+
+      foundArtist = response.artists[0];
+    }
+
+    if(!foundArtist) {
+      console.log(`    No artist found...`);
+      return res;
+    }
+
+    res.mbid = foundArtist.id;
+    return res;
   }
 
   private static async doRequest(type: string, query: string): Promise<any>{

@@ -4,7 +4,7 @@ dotenv.config();
 import fetch from "node-fetch";
 
 import TrackDB from "./trackdb.js";
-import { AlbumData, Playable, TrackData } from "./tracktypes.js";
+import { AlbumData, ArtistData, Playable, TrackData } from "./tracktypes.js";
 
 interface LastFMTopTracksResponse {
   toptracks: {
@@ -34,16 +34,29 @@ interface LastFMTopAlbumsResponse {
   };
 }
 
-interface DisplayableTrack extends TrackData { cover?: string; }
-interface DisplayableAlbum extends AlbumData { }
+interface LastFMTopArtistsResponse {
+  topartists: {
+    artist: {
+      name: string;
+      playcount: number;
+      mbid: string;
+    }[];
+  };
+}
+
+
+interface DisplayableTrack  extends TrackData { artistName?: string, cover?: string; }
+interface DisplayableAlbum  extends AlbumData { artistName?: string; }
+interface DisplayableArtist extends ArtistData { }
 type Displayables = DisplayableTrack | DisplayableAlbum;
 
 
 export default class LastFM {
   TrackDB = new TrackDB();
   
-  topTracks: DisplayableTrack[] = [];
-  topAlbums: DisplayableAlbum[] = [];
+  topTracks:  DisplayableTrack[] = [];
+  topAlbums:  DisplayableAlbum[] = [];
+  topArtists: DisplayableArtist[] = [];
 
   public init() {
     setInterval(() => {
@@ -73,6 +86,10 @@ export default class LastFM {
           if(album) displayedTrack.cover = album.cover;
         }
 
+        if(trackData.artistId) {
+          let artist = await this.TrackDB.getArtistFromID(trackData.artistId);
+          if(artist) displayedTrack.artistName = artist.name;
+        }
         this.topTracks.push(displayedTrack);
 
         this.sortByPlaycount<DisplayableTrack>(this.topTracks);
@@ -91,9 +108,31 @@ export default class LastFM {
         albumData.playcount = album.playcount;
 
         let displayedAlbum: DisplayableAlbum = albumData;
+        if(albumData.artistId) {
+          let artist = await this.TrackDB.getArtistFromID(albumData.artistId);
+          if(artist) displayedAlbum.artistName = artist.name;
+        }
         this.topAlbums.push(displayedAlbum);
 
         this.sortByPlaycount<DisplayableAlbum>(this.topAlbums);
+      });
+    });
+
+    this.doLastFMRequest<LastFMTopArtistsResponse>('user.gettopartists', `user=Fisch03&period=1month`)
+    .then(data => {
+      this.topArtists = [];
+      data.topartists.artist.forEach(async (artist) => {
+        let artistData: ArtistData = new ArtistData(artist.name);
+        if(artist.mbid && artist.mbid != "") artistData.mbid = artist.mbid;
+        
+        artistData = await this.TrackDB.fillData<ArtistData>(artistData);
+
+        artistData.playcount = artist.playcount;
+
+        let displayedArtist: DisplayableArtist = artistData;
+        this.topArtists.push(displayedArtist);
+
+        this.sortByPlaycount<DisplayableArtist>(this.topArtists);
       });
     });
   }
@@ -102,6 +141,7 @@ export default class LastFM {
     return {
       topTracks: this.topTracks,
       topAlbums: this.topAlbums,
+      topArtists: this.topArtists,
     }
   }
 
