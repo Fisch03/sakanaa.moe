@@ -1,0 +1,6 @@
+[server]
+port = 3001
+
+[misskey]
+base_url = "https://misskey.io"
+user_id = "7rkrarq81i"

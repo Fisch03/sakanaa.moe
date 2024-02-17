@@ -1,1 +1,0 @@
-{"version":"1.0.0","name":"sakanaa.moe","dependencies":{"better-sqlite3":{"version":"8.5.0"},"compression":{"version":"1.7.4"},"del":{"version":"7.0.0"},"dotenv":{"version":"16.3.1"},"express":{"version":"4.18.2"},"node-fetch":{"version":"3.3.1"},"spotify-web-api-node":{"version":"5.0.2"}}}
