@@ -1,5 +1,6 @@
 mod api;
 mod config;
+use config::CONFIG;
 
 use axum::Router;
 use tower_http::services::ServeDir;
@@ -14,7 +15,7 @@ async fn main() {
         .nest("/api", api.router)
         .fallback_service(serve_dir);
 
-    let port = config::get::<u16>("server.port").unwrap_or_else(|| {
+    let port = CONFIG.get::<u16>("server.port").unwrap_or_else(|_| {
         eprintln!("Failed to read server.port from config, falling back to port 3001");
         3001
     });

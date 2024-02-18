@@ -1,7 +1,7 @@
 mod types;
 use types::Note;
 
-use crate::config;
+use crate::config::CONFIG;
 
 use axum::{async_trait, extract::State, routing::get, Router};
 
@@ -18,6 +18,15 @@ pub struct MisskeyAPI {
 
     notes: Vec<Note>,
 }
+
+/*
+#[derive(Debug, serde::Serialize)]
+struct NotesResponse {
+    notes: Vec<Note>,
+    //emojis: Vec<Emoji>,
+    //instance: String,
+}
+*/
 
 impl MisskeyAPI {
     async fn update(&mut self) {
@@ -52,12 +61,14 @@ impl MisskeyAPI {
 #[async_trait]
 impl ApiEndpoint for MisskeyAPI {
     fn new() -> Result<EndpointDescriptor, SimpleError> {
-        let base_url = config::get::<String>("misskey.base_url")
-            .ok_or("Failed to read misskey.base_url from config")?;
-        let user_id = config::get::<String>("misskey.user_id")
-            .ok_or("Failed to read misskey.user_id from config")?;
+        let base_url = CONFIG
+            .get::<String>("misskey.base_url")
+            .map_err(|_| SimpleError::new("Failed to read misskey.base_url from config"))?;
+        let user_id = CONFIG
+            .get::<String>("misskey.user_id")
+            .map_err(|_| SimpleError::new("Failed to read misskey.user_id from config"))?;
 
-        let api = Arc::new(Mutex::new(MisskeyAPI {
+        let api = Arc::new(Mutex::new(Self {
             base_url,
             user_id,
             notes: Vec::new(),

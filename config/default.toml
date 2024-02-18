@@ -4,3 +4,21 @@ port = 3001
 [misskey]
 base_url = "https://misskey.io"
 user_id = "7rkrarq81i"
+
+[discord]
+user_id = "123456789012345678"
+
+# Vendetta last.fm integration (mobile)
+[[discord.music_activity_filters]]
+name_match = "music on my phone"
+title_src = "details"
+# title_match = 
+artist_src = "state"
+artist_match = "by (.+)"
+album_src = "large_text"
+album_match = "on (.+)"
+
+# Multiple entries allowed:
+# [[discord.music_activity_filters]]
+# match = "whatever"
+# ...

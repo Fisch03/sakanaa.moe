@@ -1,6 +1,9 @@
 mod misskey;
 use misskey::MisskeyAPI;
 
+mod discord;
+use discord::DiscordAPI;
+
 use axum::{async_trait, Router};
 use simple_error::SimpleError;
 
@@ -53,8 +56,8 @@ pub struct API {
     endpoints: Vec<Runner>,
 }
 
-const ENDPOINTS: [(&str, fn() -> Result<EndpointDescriptor, SimpleError>); 1] =
-    [("/misskey", MisskeyAPI::new)];
+const ENDPOINTS: [(&str, fn() -> Result<EndpointDescriptor, SimpleError>); 2] =
+    [("/misskey", MisskeyAPI::new), ("/discord", DiscordAPI::new)];
 
 impl API {
     pub fn new() -> Self {
