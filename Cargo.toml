@@ -5,10 +5,12 @@ edition = "2021"
 
 [dependencies]
 axum = "0.7"
+axum-macros = "0.4.1"
 chrono = { version = "0.4", features = ["serde"] }
 config = { version = "0.14", features = ["toml"] }
+date_component = "0.4.1"
 lazy_static = "1"
-maud = "0.26"
+maud = { version = "0.26", features = ["axum"] }
 regex = "1.10.3"
 reqwest = { version = "0.11", features = ["json"] }
 serde = { version = "1", features = ["derive"] }

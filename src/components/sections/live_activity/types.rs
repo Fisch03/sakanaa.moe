@@ -37,21 +37,6 @@ pub struct DiscordActivity {
     pub assets: Option<DiscordAssets>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum AlbumArtType {
-    None,
-    URL(String),
-}
-
-impl AlbumArtType {
-    pub fn from_url(url: Option<String>) -> Self {
-        match url {
-            Some(url) => AlbumArtType::URL(url),
-            None => AlbumArtType::None,
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct MusicActivityFilter {
     #[serde(with = "serde_regex")]
@@ -72,12 +57,24 @@ pub struct MusicActivityFilter {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct MusicActivity {
-    timestamps: ActivityTimestamps,
-    song: String,
-    artist: Option<String>,
-    album_artist: Option<String>,
-    album_art: AlbumArtType,
-    album: Option<String>,
+    pub timestamps: ActivityTimestamps,
+    #[serde(rename = "song")]
+    pub song_title: String,
+    pub artist: Option<String>,
+    pub album_artist: Option<String>,
+    pub album_art: Option<String>,
+    pub album: Option<String>,
+}
+
+pub fn discord_img_url(asset: &str, application_id: &str) -> String {
+    if asset.starts_with("mp:external/") {
+        format!("https://media.discordapp.net/external/{}", &asset[12..])
+    } else {
+        format!(
+            "https://cdn.discordapp.com/app-assets/{}/{}",
+            application_id, asset
+        )
+    }
 }
 
 impl MusicActivityFilter {
@@ -103,7 +100,7 @@ impl MusicActivityFilter {
         let artist_container = Self::get_match_src(&self.artist_src, activity)?;
         let album_container = Self::get_match_src(&self.album_src, activity)?;
 
-        let song: String = match &self.title_match {
+        let song_title: String = match &self.title_match {
             Some(title_match) => {
                 let title = song_container.as_str();
                 title_match.captures(title)?.get(1)?.as_str().to_string()
@@ -129,12 +126,15 @@ impl MusicActivityFilter {
 
         Some(MusicActivity {
             timestamps: activity.timestamps.clone(),
-            song,
+            song_title,
             artist,
             album_artist: None,
-            album_art: AlbumArtType::from_url(
-                activity.assets.as_ref().and_then(|a| a.large_image.clone()),
-            ),
+            album_art: activity.assets.as_ref().and_then(|a| {
+                Some(discord_img_url(
+                    &a.large_image.as_ref()?,
+                    &activity.application_id.as_ref()?,
+                ))
+            }),
             album,
         })
     }
@@ -178,9 +178,12 @@ impl OnlineStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct DiscordStatus {
+pub struct LiveActivity {
     pub online_status: OnlineStatus,
-    pub user: DiscordUser,
+    pub discord_user: DiscordUser,
     pub music_activity: Option<MusicActivity>,
-    pub activities: Vec<DiscordActivity>,
+    pub discord_activities: Vec<DiscordActivity>,
 }
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct OptionalLiveActivity(pub Option<LiveActivity>);

@@ -1,9 +1,10 @@
 @font-face {
   font-family: pixel;
-  src:url('../fonts/04B_03__.TTF');
+  src: url('../fonts/04B_03__.TTF');
   font-weight: normal;
   font-style: normal;
 }
+
 @font-face {
   font-family: pixelbig;
   src: url('../fonts/Pixellari.ttf');
@@ -31,7 +32,7 @@ body {
   -webkit-font-smoothing: none;
 
   color: var(--fg-color);
-  
+
   scrollbar-color: var(--fg-color) var(--bg-color);
   scrollbar-width: thin;
 
@@ -48,6 +49,7 @@ body {
   background: var(--bg-color);
   width: .2rem;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--fg-color);
 }
@@ -71,10 +73,10 @@ h1 {
   top: 2rem;
   left: 0;
   text-align: center;
-  padding: 0.5rem 0.4rem 0rem ;  
+  padding: 0.5rem 0.4rem 0rem;
   border-radius: 10%;
 
-  padding: 0.4rem 1rem 0rem ;
+  padding: 0.4rem 1rem 0rem;
 
   font-family: pixelbig;
   letter-spacing: normal;
@@ -87,12 +89,15 @@ ul {
 table {
   border-spacing: 20px 7px;
 }
+
 th {
   text-align: left;
 }
+
 tr {
   vertical-align: top;
 }
+
 button {
   border: none;
   background-color: var(--bg-color);
@@ -106,40 +111,58 @@ button {
 .clickable {
   cursor: var(--cursor-hover), auto;
 }
+
 .shadow {
   filter: drop-shadow(7px 7px 0 var(--fg-color));
 }
+
 .shadow-box {
   box-shadow: 7px 7px 0 var(--fg-color);
 }
+
 .inv-shadow {
   filter: drop-shadow(0.8rem 0.8rem 0 var(--bg-color));
 }
+
 .border {
   border: 1px solid var(--fg-color);
 }
+
 .inv-border {
   border: 5px solid var(--bg-color);
 }
+
 .background {
   background-color: var(--bg-color);
 }
+
 .inv-background {
   background-color: var(--fg-color);
 }
+
 .ditherbg {
   background-repeat: repeat;
   background-size: auto;
 }
+
 .colorfilter {
-  filter: saturate(0) contrast(0.8) url(#colorfilter) brightness(0.7)  invert() contrast(1.2) brightness(1.3);
+  filter: saturate(0) contrast(0.8) url(#colorfilter) brightness(0.7) invert() contrast(1.2) brightness(1.3);
 }
 
 @keyframes bounceA {
-  0%  { transform: translate(0,1px); }
-  50% { transform: translate(0,5px); }
-  100%{ transform: translate(0,1px); }
+  0% {
+    transform: translate(0, 1px);
+  }
+
+  50% {
+    transform: translate(0, 5px);
+  }
+
+  100% {
+    transform: translate(0, 1px);
+  }
 }
+
 .bounce {
   display: inline-block;
   animation: bounceA 1s infinite;
@@ -148,8 +171,8 @@ button {
 /* Waifu Image */
 #BigWaifu {
   position: fixed;
-  top:0;
-  left:0;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
 
@@ -162,14 +185,14 @@ button {
   pointer-events: none;
 }
 
-#BigWaifu > img{
-  top:0;
+#BigWaifu>img {
+  top: 0;
   right: 10%;
   height: 100%;
   transition: bottom 0.5s;
   image-rendering: auto;
 
-  transform: translate(68vw,0);
+  transform: translate(68vw, 0);
 
   pointer-events: none;
 }
@@ -179,8 +202,8 @@ button {
   position: absolute;
 
   top: 0;
-  left:   calc(min(6rem, 3vw) + 2.5rem + var(--sidecolumn-width));
-  right:  calc(min(6rem, 3vw));
+  left: calc(min(6rem, 3vw) + 2.5rem + var(--sidecolumn-width));
+  right: calc(min(6rem, 3vw));
 
   padding: calc(min(3rem, 5vh)) 0;
 
@@ -202,7 +225,8 @@ button {
   left: 0;
   gap: 2rem;
   height: 100%;
-  /*width: fit-content*/;
+  /*width: fit-content*/
+  ;
 }
 
 .column:nth-child(1) {
@@ -211,15 +235,18 @@ button {
   width: var(--sidecolumn-width);
 }
 
-.column > div {
+.column>div {
   width: 100%;
 }
 
 /* prevent text from being under the waifu ;) */
-#MainColumn > div > .sectioncontent, #MainColumn > div > a > .sectioncontent { 
+#MainColumn>div>.sectioncontent,
+#MainColumn>div>a>.sectioncontent {
   padding-right: 1.5vw;
 }
-#MainColumn > div > .sectioncontent.hastabs, #MainColumn > div > a > .sectioncontent.hastabs { 
+
+#MainColumn>div>.sectioncontent.hastabs,
+#MainColumn>div>a>.sectioncontent.hastabs {
   padding-right: 0;
 }
 
@@ -229,7 +256,7 @@ button {
 }
 
 .horizontaldivider {
-  width: 100%;  
+  width: 100%;
   display: flex;
   justify-content: space-between;
   gap: 2rem;
@@ -258,11 +285,12 @@ button {
   min-height: 3rem;
   height: 10vh;
 }
+
 .sectionheader:has(h2:nth-child(1)) {
   justify-content: space-evenly;
 }
 
-.container.vertical > .sectionheader {
+.container.vertical>.sectionheader {
   border-radius: 3rem 0 0 3rem;
   border-right: 1px solid var(--fg-color);
   min-height: 7rem;
@@ -271,41 +299,48 @@ button {
   height: unset;
   max-height: unset;
 }
-.container.vertical > .sectionheader > h2 {
+
+.container.vertical>.sectionheader>h2 {
   transform: rotate(-90deg);
   transform-origin: 50% 50%;
 }
 
-.sectionheader > h2, .sectionheader > h2 > span {
+.sectionheader>h2,
+.sectionheader>h2>span {
   border-radius: 0.5rem;
   padding: .4rem;
   height: fit-content;
   margin: 0;
 }
 
-.columnsection > .container {
+.columnsection>.container {
   border-radius: 0rem;
   border-bottom: 0;
 }
-.columnsection > .container:first-child {
+
+.columnsection>.container:first-child {
   border-radius: 3rem 3rem 0 0;
 }
-.columnsection > .container:last-child {
+
+.columnsection>.container:last-child {
   border-radius: 0 0 3rem 3rem;
   border-bottom: 1px solid var(--fg-color);
 }
-.columnsection > .container > .sectionheader {
+
+.columnsection>.container>.sectionheader {
   height: 4vh;
   min-height: 2rem;
 }
-.columnsection > .container:first-child > .sectionheader {
+
+.columnsection>.container:first-child>.sectionheader {
   height: 10vh;
   min-height: 3rem;
 }
 
-.sectioncontent, .sectioncontent.hastabs > .tabinner {
+.sectioncontent,
+.sectioncontent.hastabs>.tabinner {
   padding: .7rem 1.5rem;
- 
+
   height: calc(100% - 9rem);
   hyphens: auto;
   position: relative;
@@ -315,16 +350,22 @@ button {
   padding: 0;
 }
 
-.sectioncontent > h2, .sectioncontent.hastabs > .tabinner > h2 {
+.sectioncontent>h2,
+.sectioncontent.hastabs>.tabinner>h2 {
   margin: 0;
 }
-.container.vertical > .sectioncontent, .container.vertical > a, .container.vertical > .sectioncontent.hastabs > .tabinner {
+
+.container.vertical>.sectioncontent,
+.container.vertical>a,
+.container.vertical>.sectioncontent.hastabs>.tabinner {
   float: left;
   height: 100%;
   width: 100%;
-  padding:0;
+  padding: 0;
 }
-.container.vertical > a > .sectioncontent, .container.vertical > a >.sectioncontent.hastabs > .tabinner {
+
+.container.vertical>a>.sectioncontent,
+.container.vertical>a>.sectioncontent.hastabs>.tabinner {
   width: 100%;
   padding: 0;
   height: 100%;
@@ -342,6 +383,7 @@ button {
   border-radius: 3rem 3rem 0 0;
   border-bottom: 1px solid var(--fg-color);
 }
+
 .tabs.vertical {
   flex-direction: column;
   justify-content: space-between;
@@ -354,7 +396,7 @@ button {
   border-bottom: unset;
 }
 
-.tabs > button {
+.tabs>button {
   padding: .5rem 1rem;
   height: 100%;
   width: 100%;
@@ -362,7 +404,8 @@ button {
   font-size: 1rem;
   font-weight: 600;
 }
-.tabs.vertical > button {
+
+.tabs.vertical>button {
   padding: 0;
   height: 2rem;
   width: 100%;
@@ -370,7 +413,8 @@ button {
   font-size: 1rem;
   font-weight: 600;
 }
-.tabs > .tabsindicator {
+
+.tabs>.tabsindicator {
   position: absolute;
   left: 0;
   height: 3px;
@@ -378,7 +422,8 @@ button {
   transition: left 0.2s ease-in-out, opacity 0.2s ease-in-out;
   transform: translate(0, calc(1.5rem - 50%));
 }
-.tabs.vertical > .tabsindicator {
+
+.tabs.vertical>.tabsindicator {
   position: absolute;
   top: 0;
   width: 3px;
@@ -392,7 +437,8 @@ button {
   transform: translate(0, -7px);
 }
 
-#Discord > .sectioncontent, #Discord > .sectioncontent > a {
+#Discord>.sectioncontent,
+#Discord>.sectioncontent>a {
   display: flex;
   gap: 1rem;
   justify-content: flex-start;
@@ -402,17 +448,19 @@ button {
   transform: translateY(.4rem);
 }
 
-#DiscordAvatarBorder, #DiscordAvatar {
+.avatar-border,
+.avatar {
   border-radius: 50%;
-  width:  10vh;
+  width: 10vh;
   height: 10vh;
   min-width: 3.5rem;
   min-height: 3.5rem;
   max-width: 5rem;
   max-height: 5rem;
 }
-#DiscordAvatarBorder {
-  border-width: calc(min(5px, max(4px,.8vh)));
+
+.avatar {
+  border-width: calc(min(5px, max(4px, .8vh)));
 }
 
 /* Music */
@@ -420,13 +468,14 @@ button {
   max-height: 150rem;
 }
 
-#RecentlyPlayed > .sectioncontent > #MusicListContent {
+#RecentlyPlayed>.sectioncontent>#MusicListContent {
   height: 40vh;
   overflow-y: auto;
   border-radius: 0rem 0rem 3rem 3rem;
 }
 
-#RecentlyPlayed > .sectioncontent > #MusicListContent > div, #RecentlyPlayed > .sectioncontent > #MusicListContent > a > div {
+#RecentlyPlayed>.sectioncontent>#MusicListContent>div,
+#RecentlyPlayed>.sectioncontent>#MusicListContent>a>div {
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -442,11 +491,13 @@ button {
 #Microblogging {
   max-height: 150rem;
 }
-#Microblogging > .sectioncontent {
+
+#Microblogging>.sectioncontent {
   height: 70vh;
   overflow-y: auto;
   border-radius: 0rem 0rem 3rem 3rem;
 }
+
 .mbpost {
   display: flex;
   flex-direction: column;
@@ -457,6 +508,7 @@ button {
   transition: background-color 0.2s ease-in-out;
   margin-bottom: .5rem;
 }
+
 .mbpostheader {
   display: flex;
   flex-direction: row;
@@ -466,6 +518,7 @@ button {
   font-weight: bold;
   margin-bottom: .5rem;
 }
+
 .mbpostimages {
   display: flex;
   flex-direction: row;
@@ -474,6 +527,7 @@ button {
   gap: .5rem;
   margin-top: .5rem;
 }
+
 .mbpostimage {
   width: 50%;
   height: 20rem;
@@ -481,6 +535,7 @@ button {
   margin-bottom: .5rem;
   object-fit: cover;
 }
+
 .mbemoji {
   display: inline-block;
   width: 1.5rem;
@@ -489,7 +544,7 @@ button {
 }
 
 /* Uptime */
-#Uptime > .sectioncontent {
+#Uptime>.sectioncontent {
   min-height: 7rem;
   display: flex;
   flex-direction: column;
@@ -497,8 +552,9 @@ button {
   justify-content: center;
   gap: .5rem;
   left: 0;
-  right:0
+  right: 0
 }
+
 #UptimeCurrent {
   text-align: center;
 }
@@ -507,19 +563,21 @@ button {
 #SiteControls {
   margin-top: auto;
 }
-#SiteControls > .sectionheader {
+
+#SiteControls>.sectionheader {
   gap: 0;
   justify-content: center;
 }
 
-#Socials > .sectioncontent {
+#Socials>.sectioncontent {
   display: flex;
   justify-content: space-between;
   align-items: center;
   align-content: center;
   padding: 0 1.5rem;
 }
-#Socials > .sectioncontent > svg {
+
+#Socials>.sectioncontent>svg {
   width: 4rem;
   height: 4rem;
   transition: transform 0.2s;
@@ -527,8 +585,8 @@ button {
 
 /* Mobile and smaller screens */
 @media screen and (max-width: 1550px) {
-  #BigWaifu > img {
-    transform: translate(60vw,0);
+  #BigWaifu>img {
+    transform: translate(60vw, 0);
   }
 
   .column:nth-child(1) {
@@ -537,10 +595,10 @@ button {
     width: 100%;
     margin-bottom: 2rem;
   }
-  
+
 
   #Content {
-    left:  calc(min(6rem, 10vw));
+    left: calc(min(6rem, 10vw));
     width: calc(65vw - 2.5rem);
   }
 
@@ -552,7 +610,7 @@ button {
 @media screen and (((orientation: portrait) and (max-width: 1550px)) or (max-width: 750px)) {
   #Content {
     flex-direction: column;
-    left:  calc(min(6rem, 10vw));
+    left: calc(min(6rem, 10vw));
     right: calc(min(6rem, 10vw));
     width: unset;
   }

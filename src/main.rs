@@ -1,18 +1,21 @@
-mod api;
-mod config;
-use config::CONFIG;
+use maud::Render;
+use sakanaa_web::root_page;
+use sakanaa_web::website::{AttachWebsite, Website};
+use sakanaa_web::{config::CONFIG, website::WebsiteRouter};
 
-use axum::Router;
+use axum::routing::get;
 use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
     let serve_dir = ServeDir::new("public").append_index_html_on_directories(true);
 
-    let api = api::API::new();
+    let mut root = Website::new("sakanaa :)", "/api");
+    root.content = root_page(&mut root).await;
 
-    let app = Router::new()
-        .nest("/api", api.router)
+    let router = WebsiteRouter::new()
+        .route("/", get(Website::render(&root)))
+        .attach_website(&mut root)
         .fallback_service(serve_dir);
 
     let port = CONFIG.get::<u16>("server.port").unwrap_or_else(|_| {
@@ -24,5 +27,5 @@ async fn main() {
         .await
         .unwrap();
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, router).await.unwrap();
 }

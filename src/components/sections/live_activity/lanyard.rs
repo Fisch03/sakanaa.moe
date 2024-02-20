@@ -61,7 +61,7 @@ impl LanyardResponse {
     pub fn to_status(
         self,
         music_activity_filters: &Vec<MusicActivityFilter>,
-    ) -> Result<DiscordStatus, MissingDataError> {
+    ) -> Result<LiveActivity, MissingDataError> {
         let data = self.data.ok_or(MissingDataError)?;
 
         let online_status = OnlineStatus::new(
@@ -70,10 +70,10 @@ impl LanyardResponse {
             data.active_on_discord_mobile,
         );
 
-        let user = data.discord_user;
+        let discord_user = data.discord_user;
 
         let mut music_activities = Vec::new();
-        let activities = data
+        let discord_activities = data
             .activities
             .into_iter()
             .filter(|activity| {
@@ -88,11 +88,11 @@ impl LanyardResponse {
             })
             .collect();
 
-        Ok(DiscordStatus {
+        Ok(LiveActivity {
             online_status,
-            user,
+            discord_user,
             music_activity: music_activities.first().cloned(),
-            activities,
+            discord_activities,
         })
     }
 }

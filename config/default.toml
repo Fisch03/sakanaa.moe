@@ -1,6 +1,9 @@
 [server]
 port = 3001
 
+[page]
+birthday = "2000-01-01"
+
 [misskey]
 base_url = "https://misskey.io"
 user_id = "7rkrarq81i"
