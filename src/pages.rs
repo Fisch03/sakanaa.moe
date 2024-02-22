@@ -19,6 +19,7 @@ macro_rules! use_dyn {
 
 pub async fn root_page(website: &mut Website) -> Markup {
     let live_activity = website.add_dynamic_component("live_activity", LiveActivityComponent::new);
+    let music = website.add_dynamic_component("music", MusicComponent::new);
 
     html! {
         (big_waifu("assets/Yuuko.png"))
@@ -35,9 +36,7 @@ pub async fn root_page(website: &mut Website) -> Markup {
             }
             div class="column" {
                 (about_me())
-                div class="columnsection" {
-                    (music())
-                }
+                (use_dyn!(music))
                 (hardware())
             }
         }

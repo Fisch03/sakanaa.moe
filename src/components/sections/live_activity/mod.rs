@@ -1,28 +1,21 @@
-mod types;
-use maud::{html, Markup, Render};
-use types::{MusicActivityFilter, OptionalLiveActivity};
-
-mod lanyard;
-use lanyard::LanyardResponse;
-
 mod render;
+mod types;
+use types::*;
 
-use crate::{components::*, config::CONFIG};
+use crate::api::{discord::*, lastfm::*};
+use crate::components::*;
+use crate::config::CONFIG;
+use crate::dyn_component::*;
 
-use axum::{async_trait, extract::State, routing::get, Router};
-
-use simple_error::SimpleError;
-
-use crate::dyn_component::{ComponentDescriptor, DynamicComponent};
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use axum::{extract::State, routing::get, Router};
 
 #[derive(Debug)]
 pub struct LiveActivityComponent {
     discord_user_id: String,
     discord_music_activity_filter: Vec<MusicActivityFilter>,
+    discord_custom_activity_filter: Vec<CustomActivityFilter>,
 
-    activity: OptionalLiveActivity,
+    activity: LiveActivity,
     render_endpoint: String,
 
     last_request: Option<std::time::Instant>,
@@ -30,15 +23,38 @@ pub struct LiveActivityComponent {
 }
 
 impl LiveActivityComponent {
+    async fn fetch_lanyard_live_activity(&self) -> Option<LiveActivity> {
+        let response = LanyardResponse::fetch(&self.discord_user_id).await.ok()?;
+
+        LiveActivity::from_lanyard_response(response, &self.discord_music_activity_filter).ok()
+    }
+
     async fn update(&mut self) {
         self.last_update = Some(std::time::Instant::now());
 
-        if let Ok(response) = LanyardResponse::fetch(&self.discord_user_id).await {
-            self.activity =
-                OptionalLiveActivity(response.to_status(&self.discord_music_activity_filter).ok());
+        let mut new_activity: LiveActivity;
+
+        if let Some(activity) = self.fetch_lanyard_live_activity().await {
+            new_activity = activity;
         } else {
-            self.activity = OptionalLiveActivity(None);
+            new_activity = LiveActivity {
+                online_status: None,
+                discord_user: None,
+                music_activity: None,
+                discord_activities: Vec::new(),
+            };
         }
+
+        if new_activity.music_activity.is_none() {
+            new_activity.music_activity =
+                get_current_track(&CONFIG.get::<String>("lastfm.user").unwrap())
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|track| MusicActivity::from_lastfm_track(track));
+        }
+
+        self.activity = new_activity;
     }
 
     async fn status_handler(State(api): State<Arc<Mutex<LiveActivityComponent>>>) -> Markup {
@@ -46,14 +62,14 @@ impl LiveActivityComponent {
 
         api.last_request = Some(std::time::Instant::now());
 
-        html!((api.activity))
+        api.activity.render(&api.discord_custom_activity_filter)
     }
 }
 
 impl Render for LiveActivityComponent {
     fn render(&self) -> Markup {
         section_raw(
-            self.activity.render(),
+            self.activity.render(&self.discord_custom_activity_filter),
             &SectionConfig {
                 id: Some("Discord"),
                 htmx: Some(HTMXConfig {
@@ -71,12 +87,19 @@ impl DynamicComponent for LiveActivityComponent {
     fn new(full_path: &str) -> Result<ComponentDescriptor, SimpleError> {
         let discord_user_id = CONFIG
             .get::<String>("discord.user_id")
-            .map_err(|_| SimpleError::new("No user_id found in config"))?;
+            .map_err(|_| SimpleError::new("No discord.user_id found in config"))?;
         let discord_music_activity_filter = CONFIG
-            .get_array("discord.music_activity_filters")
+            .get_array("discord.activity_filters.music")
             .unwrap_or(Vec::new());
-
         let discord_music_activity_filter = discord_music_activity_filter
+            .into_iter()
+            .filter_map(|filter| filter.try_deserialize().ok())
+            .collect();
+
+        let discord_custom_activity_filter = CONFIG
+            .get_array("discord.activity_filters.custom")
+            .unwrap_or(Vec::new());
+        let discord_custom_activity_filter = discord_custom_activity_filter
             .into_iter()
             .filter_map(|filter| filter.try_deserialize().ok())
             .collect();
@@ -86,8 +109,9 @@ impl DynamicComponent for LiveActivityComponent {
 
             discord_user_id,
             discord_music_activity_filter,
+            discord_custom_activity_filter,
 
-            activity: OptionalLiveActivity(None),
+            activity: LiveActivity::default(),
 
             last_request: None,
             last_update: None,
@@ -98,7 +122,7 @@ impl DynamicComponent for LiveActivityComponent {
             .with_state(component.clone());
 
         Ok(ComponentDescriptor {
-            component: component,
+            component,
             router: Some(router),
         })
     }

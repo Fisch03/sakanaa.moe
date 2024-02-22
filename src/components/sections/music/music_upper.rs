@@ -1,7 +1,7 @@
 use crate::components::*;
 use maud::{html, Markup};
 
-pub fn music() -> Markup {
+pub fn music_upper() -> Markup {
     section(
         "music",
         html! {

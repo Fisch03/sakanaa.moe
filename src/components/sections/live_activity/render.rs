@@ -1,6 +1,7 @@
-use super::types::*;
-use maud::{html, Markup, Render};
+use maud::{html, Markup};
 
+use super::types::*;
+use crate::api::discord::*;
 use crate::components::*;
 
 fn bouncing_note() -> Markup {
@@ -21,20 +22,20 @@ fn activity_img(url: &str) -> Markup {
     }
 }
 
+fn avatar_img(user: &DiscordUser) -> Markup {
+    let avatar_src = if let Some(avatar) = &user.avatar {
+        format!(
+            "https://cdn.discordapp.com/avatars/{}/{}.png",
+            user.id, avatar
+        )
+    } else {
+        "https://cdn.discordapp.com/embed/avatars/0.png".to_string()
+    };
+
+    avatar_image(&avatar_src)
+}
+
 impl LiveActivity {
-    fn avatar_img(&self) -> Markup {
-        let avatar_src = if let Some(avatar) = &self.discord_user.avatar {
-            format!(
-                "https://cdn.discordapp.com/avatars/{}/{}.png",
-                self.discord_user.id, avatar
-            )
-        } else {
-            "https://cdn.discordapp.com/embed/avatars/0.png".to_string()
-        };
-
-        avatar_image(&avatar_src)
-    }
-
     fn render_music(music: &MusicActivity) -> Markup {
         html! {
             @if let Some(url) = &music.album_art {
@@ -57,6 +58,19 @@ impl LiveActivity {
     }
 
     fn render_activity(activity: &DiscordActivity) -> Markup {
+        let has_name = activity.name.is_some();
+        let title = if let Some(title) = &activity.custom_title {
+            title.as_str()
+        } else {
+            "playing"
+        };
+
+        let title = if has_name {
+            html!(h3 style="margin-bottom: 10px" { "im " (title) })
+        } else {
+            html!(h2 style="margin-bottom: 10px" { "im playing" })
+        };
+
         html! {
             @if let Some(url) = &activity.assets.as_ref().and_then(|a| a.large_image.as_ref()) {
                 @if let Some(application_id) = &activity.application_id {
@@ -64,7 +78,7 @@ impl LiveActivity {
                 }
             }
             div {
-                h3 style="margin-bottom: 10px" { "im playing" }
+                (title)
                 @if let Some(name) = &activity.name {
                     h2 style="max-width: 20rem; margin-bottom: 5px; margin-top: 0"
                        { (name.as_str()) }
@@ -88,28 +102,30 @@ impl LiveActivity {
         }
     }
 
-    fn render_relevant_activity(&self) -> Markup {
+    fn render_relevant_activity(&self, custom_filters: &[CustomActivityFilter]) -> Markup {
         if let Some(music) = &self.music_activity {
             Self::render_music(&music)
         } else if let Some(activity) = &self.discord_activities.first() {
-            Self::render_activity(&activity)
+            if let Some(filtered_activity) = custom_filters.iter().find_map(|f| f.apply(activity)) {
+                Self::render_activity(&filtered_activity)
+            } else {
+                Self::render_activity(&activity)
+            }
         } else {
             Self::render_no_activity()
         }
     }
-}
 
-impl Render for OptionalLiveActivity {
-    fn render(&self) -> Markup {
-        match &self.0 {
-            Some(status) => section_inner(
-                html! {
-                    div class="inv-border avatar-border" { (status.avatar_img()) }
-                    (section_header(status.discord_user.username.as_str()))
-                },
-                status.render_relevant_activity(),
-            ),
-            None => LiveActivity::render_no_activity(),
-        }
+    pub fn render(&self, custom_filter: &[CustomActivityFilter]) -> Markup {
+        let header = if let Some(user) = &self.discord_user {
+            html!(
+                div class="inv-border avatar-border" { (avatar_img(user)) }
+                (section_header(user.username.as_str()))
+            )
+        } else {
+            section_header("what i'm doing right now!")
+        };
+
+        section_inner(header, self.render_relevant_activity(custom_filter))
     }
 }

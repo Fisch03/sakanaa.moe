@@ -1,5 +1,6 @@
 [server]
 port = 3001
+user_agent = "sakanaa.moe/{version}" # User Agent used for requests to external services. {version} will be replaced with the current version of the server.
 
 [page]
 birthday = "2000-01-01"
@@ -11,17 +12,29 @@ user_id = "7rkrarq81i"
 [discord]
 user_id = "123456789012345678"
 
+[lastfm]
+user = "very_cool_username"
+api_key = "123456890abcdefghijklmnopqrstuvw"
+
 # Vendetta last.fm integration (mobile)
-[[discord.music_activity_filters]]
-name_match = "music on my phone"
-title_src = "details"
-# title_match = 
-artist_src = "state"
-artist_match = "by (.+)"
-album_src = "large_text"
-album_match = "on (.+)"
+[[discord.activity_filters.music]]
+name_match = "music on my phone" # matches the name of the app (regex)
+title_src = "details"            # where to get the song title from
+# title_match =                  # optional, regex to match the title (regex, capture group 1 is used)
+artist_src = "state"     # where to get the artist from
+artist_match = "by (.+)" # regex to match the artist (regex, capture group 1 is used)
+album_src = "large_text" # where to get the album from
+album_match = "on (.+)"  # regex to match the album (regex, capture group 1 is used)
 
 # Multiple entries allowed:
-# [[discord.music_activity_filters]]
+# [[discord.filters.music_activity]]
 # match = "whatever"
 # ...
+
+# VSCode
+[[discord.activity_filters.custom]]
+name_match = "Visual Studio Code" # matches the name of the app (regex)
+new_title = "coding"              # changes "im playing" to "im coding"
+hide_name = true                  # hides the name of the app
+
+# Multiple entries allowed again!

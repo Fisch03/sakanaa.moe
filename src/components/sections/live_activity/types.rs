@@ -1,40 +1,108 @@
-use chrono::{serde::ts_milliseconds_option, DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ActivityTimestamps {
-    #[serde(with = "ts_milliseconds_option", default)]
-    start: Option<DateTime<Utc>>,
-    #[serde(with = "ts_milliseconds_option", default)]
-    end: Option<DateTime<Utc>>,
+use crate::api::discord::*;
+use crate::api::lastfm::*;
+
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+pub struct LiveActivity {
+    pub online_status: Option<OnlineStatus>,
+    pub discord_user: Option<DiscordUser>,
+    pub music_activity: Option<MusicActivity>,
+    pub discord_activities: Vec<DiscordActivity>,
+}
+
+impl LiveActivity {
+    pub fn from_lanyard_response(
+        response: LanyardResponse,
+        music_activity_filters: &Vec<MusicActivityFilter>,
+    ) -> Result<Self, MissingDataError> {
+        let data = response.data.ok_or(MissingDataError)?;
+
+        let online_status = OnlineStatus::new(
+            &data.discord_status,
+            data.active_on_discord_desktop || data.active_on_discord_web,
+            data.active_on_discord_mobile,
+        );
+
+        let discord_user = data.discord_user;
+
+        let mut music_activities = Vec::new();
+        let discord_activities = data
+            .activities
+            .into_iter()
+            .filter(|activity| {
+                if let Some(music_activity) = music_activity_filters
+                    .iter()
+                    .find_map(|filter| filter.apply(&activity))
+                {
+                    music_activities.push(music_activity);
+                    return false;
+                }
+                true
+            })
+            .collect();
+
+        Ok(LiveActivity {
+            online_status: Some(online_status),
+            discord_user: Some(discord_user),
+            music_activity: music_activities.first().cloned(),
+            discord_activities,
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct DiscordUser {
-    pub username: String,
-    pub public_flags: u64,
-    pub id: String,
-    pub avatar: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct DiscordAssets {
-    pub large_image: Option<String>,
-    pub large_text: Option<String>,
-    pub small_image: Option<String>,
-    pub small_text: Option<String>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct DiscordActivity {
-    pub r#type: u64,
-    pub state: Option<String>,
+pub struct MusicActivity {
     pub timestamps: ActivityTimestamps,
-    pub application_id: Option<String>,
+    #[serde(rename = "song")]
+    pub song_title: String,
+    pub artist: Option<String>,
+    pub album_artist: Option<String>,
+    pub album_art: Option<String>,
+    pub album: Option<String>,
+}
 
-    pub name: Option<String>,
-    pub details: Option<String>,
-    pub assets: Option<DiscordAssets>,
+impl MusicActivity {
+    pub fn from_lastfm_track(track: LastFMTrack) -> Self {
+        MusicActivity {
+            timestamps: ActivityTimestamps {
+                start: None,
+                end: None,
+            },
+            song_title: track.name,
+            artist: Some(track.artist.name),
+            album_artist: None,
+            album_art: None, //TODO: fetch this from musicbrainz or library (same as music section)
+            album: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct CustomActivityFilter {
+    #[serde(with = "serde_regex")]
+    name_match: regex::Regex,
+    new_title: String,
+    hide_name: bool,
+}
+
+impl CustomActivityFilter {
+    pub fn apply(&self, activity: &DiscordActivity) -> Option<DiscordActivity> {
+        if !self.name_match.is_match(activity.name.as_ref()?) {
+            return None;
+        }
+
+        let mut new_activity = activity.clone();
+        new_activity.name = if self.hide_name {
+            None
+        } else {
+            Some(self.new_title.clone())
+        };
+
+        new_activity.custom_title = Some(self.new_title.clone());
+
+        Some(new_activity)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -53,28 +121,6 @@ pub struct MusicActivityFilter {
     album_src: String,
     #[serde(with = "serde_regex", default)]
     album_match: Option<regex::Regex>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct MusicActivity {
-    pub timestamps: ActivityTimestamps,
-    #[serde(rename = "song")]
-    pub song_title: String,
-    pub artist: Option<String>,
-    pub album_artist: Option<String>,
-    pub album_art: Option<String>,
-    pub album: Option<String>,
-}
-
-pub fn discord_img_url(asset: &str, application_id: &str) -> String {
-    if asset.starts_with("mp:external/") {
-        format!("https://media.discordapp.net/external/{}", &asset[12..])
-    } else {
-        format!(
-            "https://cdn.discordapp.com/app-assets/{}/{}",
-            application_id, asset
-        )
-    }
 }
 
 impl MusicActivityFilter {
@@ -139,51 +185,3 @@ impl MusicActivityFilter {
         })
     }
 }
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum DeviceType {
-    Desktop,
-    Mobile,
-    Unknown,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum OnlineStatus {
-    Online(DeviceType),
-    Idle(DeviceType),
-    DoNotDisturb(DeviceType),
-    Invisible,
-    Offline,
-}
-
-impl OnlineStatus {
-    pub fn new(status: &str, is_desktop: bool, is_mobile: bool) -> Self {
-        let device = if is_desktop {
-            DeviceType::Desktop
-        } else if is_mobile {
-            DeviceType::Mobile
-        } else {
-            DeviceType::Unknown
-        };
-
-        match status {
-            "online" => OnlineStatus::Online(device),
-            "idle" => OnlineStatus::Idle(device),
-            "dnd" => OnlineStatus::DoNotDisturb(device),
-            "invisible" => OnlineStatus::Invisible,
-            "offline" => OnlineStatus::Offline,
-            _ => OnlineStatus::Offline,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct LiveActivity {
-    pub online_status: OnlineStatus,
-    pub discord_user: DiscordUser,
-    pub music_activity: Option<MusicActivity>,
-    pub discord_activities: Vec<DiscordActivity>,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct OptionalLiveActivity(pub Option<LiveActivity>);

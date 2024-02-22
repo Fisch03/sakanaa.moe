@@ -56,3 +56,13 @@ pub fn section_inner(header: Markup, content: Markup) -> Markup {
 pub fn section_header(header: &str) -> Markup {
     html! { h2 class="background" { (header) } }
 }
+
+pub fn split_section(sections: &[Markup]) -> Markup {
+    html! {
+        div class="columnsection" {
+            @for section in sections {
+                (section)
+            }
+        }
+    }
+}

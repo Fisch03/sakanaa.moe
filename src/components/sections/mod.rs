@@ -11,4 +11,7 @@ mod hardware;
 pub use hardware::hardware;
 
 mod music;
-pub use music::music;
+pub use music::MusicComponent;
+
+mod microblogging;
+pub use microblogging::MicrobloggingComponent;
