@@ -16,8 +16,6 @@ lazy_static! {
         .expect("Missing server.user_agent in config")
         .replace("{version}", env!("CARGO_PKG_VERSION"));
 
-        dbg!(&user_agent);
-
         reqwest::Client::builder()
             .user_agent(&user_agent)
             .build()

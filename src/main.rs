@@ -8,7 +8,7 @@ use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
-    let serve_dir = ServeDir::new("public").append_index_html_on_directories(true);
+    let serve_dir = ServeDir::new("static").append_index_html_on_directories(true);
 
     let mut root = Website::new("sakanaa :)", "/api");
     root.content = root_page(&mut root).await;

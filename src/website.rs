@@ -5,6 +5,7 @@ use simple_error::SimpleError;
 use crate::components::colorfilter;
 use crate::dyn_component::{DynamicComponentConstructor, SharedDynamicComponent};
 
+#[allow(dead_code)]
 struct Runner {
     inner: SharedDynamicComponent,
     runner: tokio::task::JoinHandle<()>,
@@ -38,6 +39,7 @@ pub struct Website {
 
     router: Router,
     router_path: String,
+
     #[allow(dead_code)]
     runners: Vec<Runner>,
     frozen: bool,
