@@ -1,7 +1,7 @@
 use maud::Render;
+use sakanaa_web::config::config;
 use sakanaa_web::root_page;
-use sakanaa_web::website::{AttachWebsite, Website};
-use sakanaa_web::{config::CONFIG, website::WebsiteRouter};
+use sakanaa_web::website::{AttachWebsite, Website, WebsiteRouter};
 
 use axum::routing::get;
 use tower_http::services::ServeDir;
@@ -18,7 +18,7 @@ async fn main() {
         .attach_website(&mut root)
         .fallback_service(serve_dir);
 
-    let port = CONFIG.get::<u16>("server.port").unwrap_or_else(|_| {
+    let port = config().get::<u16>("server.port").unwrap_or_else(|_| {
         eprintln!("Failed to read server.port from config, falling back to port 3001");
         3001
     });

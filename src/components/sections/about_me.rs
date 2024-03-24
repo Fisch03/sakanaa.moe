@@ -1,13 +1,12 @@
 use crate::components::*;
-use crate::config::CONFIG;
+use crate::config::config;
 use chrono::prelude::*;
-use date_component::date_component;
 use maud::{html, Markup};
 
 pub fn about_me() -> Markup {
     //yes, this is completely overkill :P
     let now = Utc::now();
-    let config_date = CONFIG
+    let config_date = config()
         .get::<String>("page.birthday")
         .expect("page.birthday not set in config");
 
@@ -27,8 +26,8 @@ pub fn about_me() -> Markup {
         chrono::offset::Utc,
     );
 
-    let interval = date_component::calculate(&birthdate, &now);
-    let interval_years = interval.year;
+    let diff = now - birthdate;
+    let interval_years = diff.num_days() / 365;
 
     section(
         "about me",

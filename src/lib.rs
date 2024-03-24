@@ -4,4 +4,5 @@ pub mod dyn_component;
 pub mod pages;
 pub use pages::*;
 pub mod api;
+pub mod db;
 pub mod website;

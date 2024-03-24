@@ -17,9 +17,18 @@ macro_rules! use_dyn {
     };
 }
 
+fn column_spacer() -> Markup {
+    html! {
+        div class="column-spacer" {}
+    }
+}
+
 pub async fn root_page(website: &mut Website) -> Markup {
     let live_activity = website.add_dynamic_component("live_activity", LiveActivityComponent::new);
+    //let microblogging = website.add_dynamic_component("microblogging", MicrobloggingComponent::new);
     let music = website.add_dynamic_component("music", MusicComponent::new);
+
+    let zerox20 = website.add_dynamic_component("0x20", Zerox20ButtonComponent::new);
 
     html! {
         (big_waifu("assets/Yuuko.png"))
@@ -33,10 +42,13 @@ pub async fn root_page(website: &mut Website) -> Markup {
                     ("hardware", "Hardware"),
                     ("uptime", "Uptime"),
                 ]))
+                (column_spacer())
+                (site_controls(use_dyn!(zerox20)))
             }
             div class="column" {
                 (about_me())
                 (use_dyn!(music))
+                //(use_dyn!(microblogging))
                 (hardware())
             }
         }

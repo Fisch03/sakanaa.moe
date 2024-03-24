@@ -1,6 +1,6 @@
+use anyhow::{bail, Result};
 use axum::Router;
 use maud::{html, Markup, Render, DOCTYPE};
-use simple_error::SimpleError;
 
 use crate::components::colorfilter;
 use crate::dyn_component::{DynamicComponentConstructor, SharedDynamicComponent};
@@ -40,7 +40,6 @@ pub struct Website {
     router: Router,
     router_path: String,
 
-    #[allow(dead_code)]
     runners: Vec<Runner>,
     frozen: bool,
 }
@@ -63,6 +62,7 @@ impl Render for Website {
                 }
 
                 script src="js/htmx.min.js" {}
+                script src="js/howler.min.js" {}
             }
         }
     }
@@ -88,9 +88,9 @@ impl Website {
         &mut self,
         name: &str,
         constructor: DynamicComponentConstructor,
-    ) -> Result<SharedDynamicComponent, SimpleError> {
+    ) -> Result<SharedDynamicComponent> {
         if self.frozen {
-            return Err(SimpleError::new("Website is frozen"));
+            bail!("Website is frozen");
         }
         let path = format!("/{}", name.trim_start_matches("/"));
         let full_path = format!("{}{}", &self.router_path, &path);

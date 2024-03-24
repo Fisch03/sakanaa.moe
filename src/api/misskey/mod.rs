@@ -1,10 +1,10 @@
 pub mod types;
 pub use types::*;
 
-use crate::config::CLIENT;
+use crate::config::client;
 
 pub async fn fetch_notes(base_url: &str, user_id: &str) -> Result<Vec<Note>, reqwest::Error> {
-    let res = CLIENT
+    let res = client()
         .post(format!("{}/api/users/notes", base_url))
         .json(&serde_json::json!({
             "userId": user_id,

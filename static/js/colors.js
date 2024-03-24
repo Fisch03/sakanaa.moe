@@ -110,17 +110,18 @@ window.addEventListener('load', () => {
     .then(() => {
       applyColors();
     })
+
+  document.getElementById("ColorBtn").addEventListener('click', (e) => {
+    pointer = Math.random() * palettes.length | 0;
+
+    fgcolor = palettes[pointer].fg;
+    bgcolor = palettes[pointer].bg;
+    console.log(palettes[pointer].n);
+
+    applyColors();
+  });
 });
 
-window.addEventListener('keydown', (e) => {
-  pointer = Math.random() * palettes.length | 0;
-
-  fgcolor = palettes[pointer].fg;
-  bgcolor = palettes[pointer].bg;
-  console.log(palettes[pointer].n);
-
-  applyColors();
-});
 
 document.body.addEventListener('htmx:afterSwap', (e) => {
   applyElementColors(e.detail.target);

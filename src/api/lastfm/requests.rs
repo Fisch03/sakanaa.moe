@@ -1,19 +1,27 @@
-use crate::config::CLIENT;
+use crate::config::{client, config};
+use crate::db::{
+    db,
+    music::{self, MusicDBExt, UnprocessedAlbum, UnprocessedTrack},
+};
 
 use super::types::*;
 
-use reqwest::{header, Error};
-
-use lazy_static::lazy_static;
+use anyhow::Result;
+use reqwest::header;
 use serde::Deserialize;
+use std::sync::OnceLock;
 
-lazy_static! {
-    pub static ref LASTFM_API_KEY: String = crate::config::CONFIG
-        .get::<String>("lastfm.api_key")
-        .expect("Missing lastfm.api_key in config");
+fn api_key() -> &'static String {
+    pub static LASTFM_API_KEY: OnceLock<String> = OnceLock::new();
+    LASTFM_API_KEY.get_or_init(|| {
+        config()
+            .get::<String>("lastfm.api_key")
+            .expect("Missing lastfm.api_key in config")
+            .to_string()
+    })
 }
 
-pub async fn get_current_track(user: &str) -> Result<Option<LastFMTrack>, Error> {
+pub async fn get_current_track(user: &str) -> Result<Option<music::Track>> {
     // i love the last.fm api /s
     #[derive(Debug, Deserialize)]
     struct Attr {
@@ -25,6 +33,7 @@ pub async fn get_current_track(user: &str) -> Result<Option<LastFMTrack>, Error>
     struct RecentTrack {
         #[serde(flatten)]
         track: LastFMTrack,
+        album: LastFMRecentAlbum,
         #[serde(rename = "@attr", default)]
         attr: Option<Attr>,
     }
@@ -58,20 +67,27 @@ pub async fn get_current_track(user: &str) -> Result<Option<LastFMTrack>, Error>
         };
 
         if nowplaying.is_some() && nowplaying.unwrap() == "true" {
-            Some(t.track.clone())
+            Some((t.track.clone(), t.album.clone()))
         } else {
             None
         }
     });
 
-    Ok(current)
+    match current {
+        Some((track, album)) => {
+            let mut track = UnprocessedTrack::from(track);
+            track.album = Some(UnprocessedAlbum {
+                name: album.name,
+                mbid: album.mbid,
+                artist: None,
+            });
+            db().await.upsert_track(track).await.map(|t| Some(t))
+        }
+        None => return Ok(None),
+    }
 }
 
-pub async fn top_tracks(
-    user: &str,
-    period: LastFMPeriod,
-    limit: u32,
-) -> Result<Vec<LastFMTrack>, Error> {
+pub async fn top_tracks(user: &str, period: LastFMPeriod, limit: u32) -> Result<Vec<LastFMTrack>> {
     #[derive(Debug, Deserialize)]
     struct TopTracksResponse {
         toptracks: Vec<LastFMTrack>,
@@ -94,7 +110,7 @@ pub async fn top_artists(
     user: &str,
     period: LastFMPeriod,
     limit: u32,
-) -> Result<Vec<LastFMArtist>, Error> {
+) -> Result<Vec<LastFMArtist>> {
     #[derive(Debug, Deserialize)]
     struct TopArtistsResponse {
         topartists: Vec<LastFMArtist>,
@@ -113,11 +129,7 @@ pub async fn top_artists(
     Ok(res.topartists)
 }
 
-pub async fn top_albums(
-    user: &str,
-    period: LastFMPeriod,
-    limit: u32,
-) -> Result<Vec<LastFMAlbum>, Error> {
+pub async fn top_albums(user: &str, period: LastFMPeriod, limit: u32) -> Result<Vec<LastFMAlbum>> {
     #[derive(Debug, Deserialize)]
     struct TopAlbumsResponse {
         topalbums: Vec<LastFMAlbum>,
@@ -136,39 +148,16 @@ pub async fn top_albums(
     Ok(res.topalbums)
 }
 
-pub async fn do_request<T>(method: &str, params: &[String]) -> Result<T, Error>
+async fn do_request<T>(method: &str, params: &[String]) -> Result<T>
 where
     T: for<'de> Deserialize<'de>,
-    T: std::fmt::Debug,
 {
-    /*
-    {
-        let body = format!(
-            "api_key={}&method={}&format=json&{}",
-            &*LASTFM_API_KEY,
-            method,
-            params.join("&")
-        );
-
-        dbg!(&body);
-
-        let res = CLIENT
-            .post("https://ws.audioscrobbler.com/2.0/")
-            .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await?;
-
-        dbg!(&res.json::<T>().await);
-    }
-    */
-
-    let res = CLIENT
+    let res = client()
         .post("https://ws.audioscrobbler.com/2.0/")
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(format!(
             "api_key={}&method={}&format=json&{}",
-            &*LASTFM_API_KEY,
+            api_key(),
             method,
             params.join("&")
         ))

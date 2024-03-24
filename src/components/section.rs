@@ -11,6 +11,7 @@ pub struct SectionConfig<'a> {
     pub htmx: Option<HTMXConfig<'a>>,
     pub is_vertical: bool,
     pub hidden_on_mobile: bool,
+    pub at_end: bool,
 }
 
 pub fn section(header: &str, inner: Markup, config: &SectionConfig) -> Markup {
@@ -31,6 +32,10 @@ pub fn section_raw(inner: Markup, config: &SectionConfig) -> Markup {
 
     if config.hidden_on_mobile {
         classes.push("hideonmobile");
+    }
+
+    if config.at_end {
+        classes.push("atend");
     }
 
     let classes_str = classes.join(" ");

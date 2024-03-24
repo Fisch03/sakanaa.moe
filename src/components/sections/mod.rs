@@ -15,3 +15,6 @@ pub use music::MusicComponent;
 
 mod microblogging;
 pub use microblogging::MicrobloggingComponent;
+
+mod site_controls;
+pub use site_controls::site_controls;

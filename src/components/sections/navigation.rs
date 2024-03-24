@@ -6,7 +6,7 @@ pub fn navigation(entries: Vec<(&str, &str)>) -> Markup {
     section(
         "navigation",
         html! {
-            div class="sectioncontent tabs vertical" {
+            div class="tabs vertical" {
                 @for (name, target_id) in entries {
                     button data-target=(target_id) { (name) }
                 }

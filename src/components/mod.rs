@@ -1,3 +1,4 @@
+
 mod filtered_image;
 pub use filtered_image::*;
 
@@ -10,3 +11,6 @@ pub use colorfilter::*;
 
 mod big_waifu;
 pub use big_waifu::*;
+
+mod zerox20;
+pub use zerox20::*;

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::config::CLIENT;
+use crate::config::client;
 
 use super::types::*;
 
@@ -48,7 +48,7 @@ pub struct MissingDataError;
 
 impl LanyardResponse {
     pub async fn fetch(user_id: &String) -> Result<Self, reqwest::Error> {
-        let res = CLIENT
+        let res = client()
             .get(format!("https://api.lanyard.rest/v1/users/{}", user_id))
             .send()
             .await?

@@ -4,18 +4,22 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1"
+aubio-rs = "0.2"
 axum = "0.7"
-axum-macros = "0.4.1"
 chrono = { version = "0.4", features = ["serde"] }
 config = { version = "0.14", features = ["toml"] }
-date_component = "0.4.1"
-lazy_static = "1"
+dlhn = "0.1"
+futures = "0.3"
 maud = { version = "0.26", features = ["axum"] }
-regex = "1.10.3"
-reqwest = { version = "0.11", features = ["json"] }
+mp3lame-encoder = "0.1"
+rayon = "1.9"
+regex = "1.10"
+reqwest = { version = "0.12", features = ["json"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_regex = "1.1.0"
-simple-error = "0.3"
+serde_regex = "1"
+symphonia = { version = "0.5", features = ["all-codecs", "all-formats"] }
 tokio = { version = "1", features = ["full"] }
+tokio-rusqlite = "0.5"
 tower-http = { version = "0.5", features = ["fs"] }

@@ -1,8 +1,8 @@
 use crate::api::misskey::*;
-use crate::config::CONFIG;
+use crate::config::config;
 use crate::dyn_component::*;
 
-use axum::{async_trait, extract::State, routing::get, Router};
+use axum::{async_trait, extract::State, routing::get};
 
 #[derive(Debug)]
 pub struct MicrobloggingComponent {
@@ -33,13 +33,9 @@ impl Render for MicrobloggingComponent {
 
 #[async_trait]
 impl DynamicComponent for MicrobloggingComponent {
-    fn new(_full_path: &str) -> Result<ComponentDescriptor, SimpleError> {
-        let base_url = CONFIG
-            .get::<String>("misskey.base_url")
-            .map_err(|_| SimpleError::new("Failed to read misskey.base_url from config"))?;
-        let user_id = CONFIG
-            .get::<String>("misskey.user_id")
-            .map_err(|_| SimpleError::new("Failed to read misskey.user_id from config"))?;
+    fn new(_full_path: &str) -> Result<ComponentDescriptor> {
+        let base_url = config().get::<String>("misskey.base_url")?;
+        let user_id = config().get::<String>("misskey.user_id")?;
 
         let component = Arc::new(Mutex::new(Self {
             base_url,

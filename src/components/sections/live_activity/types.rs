@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::discord::*;
-use crate::api::lastfm::*;
+//use crate::api::lastfm::*;
+use crate::db::music::Track;
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct LiveActivity {
@@ -62,8 +63,8 @@ pub struct MusicActivity {
     pub album: Option<String>,
 }
 
-impl MusicActivity {
-    pub fn from_lastfm_track(track: LastFMTrack) -> Self {
+impl From<Track> for MusicActivity {
+    fn from(track: Track) -> Self {
         MusicActivity {
             timestamps: ActivityTimestamps {
                 start: None,

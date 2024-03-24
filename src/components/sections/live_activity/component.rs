@@ -1,16 +1,18 @@
 use super::types::*;
 use crate::api::{discord::*, lastfm::*};
 use crate::components::*;
-use crate::config::CONFIG;
+use crate::config::config;
 use crate::dyn_component::*;
 
-use axum::{extract::State, routing::get, Router};
+use axum::{extract::State, routing::get};
 
 #[derive(Debug)]
 pub struct LiveActivityComponent {
     discord_user_id: String,
     discord_music_activity_filter: Vec<MusicActivityFilter>,
     discord_custom_activity_filter: Vec<CustomActivityFilter>,
+
+    lastfm_user: String,
 
     activity: LiveActivity,
     render_endpoint: String,
@@ -43,12 +45,11 @@ impl LiveActivityComponent {
         }
 
         if new_activity.music_activity.is_none() {
-            new_activity.music_activity =
-                get_current_track(&CONFIG.get::<String>("lastfm.user").unwrap())
-                    .await
-                    .ok()
-                    .flatten()
-                    .map(|track| MusicActivity::from_lastfm_track(track));
+            new_activity.music_activity = get_current_track(&self.lastfm_user)
+                .await
+                .ok()
+                .flatten()
+                .map(|track| track.into());
         }
 
         self.activity = new_activity;
@@ -71,7 +72,7 @@ impl Render for LiveActivityComponent {
                 id: Some("Discord"),
                 htmx: Some(HTMXConfig {
                     get: &self.render_endpoint,
-                    trigger: "load, every 5s",
+                    trigger: "every 5s",
                 }),
                 ..Default::default()
             },
@@ -81,11 +82,9 @@ impl Render for LiveActivityComponent {
 
 #[async_trait]
 impl DynamicComponent for LiveActivityComponent {
-    fn new(full_path: &str) -> Result<ComponentDescriptor, SimpleError> {
-        let discord_user_id = CONFIG
-            .get::<String>("discord.user_id")
-            .map_err(|_| SimpleError::new("No discord.user_id found in config"))?;
-        let discord_music_activity_filter = CONFIG
+    fn new(full_path: &str) -> Result<ComponentDescriptor> {
+        let discord_user_id = config().get::<String>("discord.user_id")?;
+        let discord_music_activity_filter = config()
             .get_array("discord.activity_filters.music")
             .unwrap_or(Vec::new());
         let discord_music_activity_filter = discord_music_activity_filter
@@ -93,7 +92,7 @@ impl DynamicComponent for LiveActivityComponent {
             .filter_map(|filter| filter.try_deserialize().ok())
             .collect();
 
-        let discord_custom_activity_filter = CONFIG
+        let discord_custom_activity_filter = config()
             .get_array("discord.activity_filters.custom")
             .unwrap_or(Vec::new());
         let discord_custom_activity_filter = discord_custom_activity_filter
@@ -101,12 +100,16 @@ impl DynamicComponent for LiveActivityComponent {
             .filter_map(|filter| filter.try_deserialize().ok())
             .collect();
 
+        let lastfm_user = config().get::<String>("lastfm.user")?;
+
         let component = Arc::new(Mutex::new(Self {
             render_endpoint: full_path.to_string(),
 
             discord_user_id,
             discord_music_activity_filter,
             discord_custom_activity_filter,
+
+            lastfm_user,
 
             activity: LiveActivity::default(),
 
@@ -132,7 +135,7 @@ impl DynamicComponent for LiveActivityComponent {
             }
         // Otherwise update the status slowly
         } else if let Some(last_update) = self.last_update {
-            if last_update.elapsed().as_secs() > 120 {
+            if last_update.elapsed().as_secs() > 45 {
                 self.update().await;
             }
         // If the status has never been updated, update it

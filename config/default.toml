@@ -1,6 +1,39 @@
 [server]
 port = 3001
-user_agent = "sakanaa.moe/{version}" # User Agent used for requests to external services. {version} will be replaced with the current version of the server.
+
+# User Agent used for requests to external services. 
+# {version} will be replaced with the current version of the server 
+# {contact} will be replaced with the value of the server.contact field below
+user_agent = "sakanaa.moe/{version} ({contact})" 
+
+# some apis (namely the musicbrainz api) want the user agent to contain contact information in the form of an email or url.
+# this field will be used to fill this contact informaion in the user agent 
+contact = "https://cool_website.com"
+
+[files]
+db_path = "./db.sqlite"
+
+# path to the music library. 
+# library currently has to be organized in a artist/album/track fashion.
+music_lib = "/path/to/music/lib"
+
+# if a regex in the 'from' field is encountered in a song path, 
+# it will be replaced with the 'to' characters before looking it up in the music library. 
+# these defaults are the ones also used by beets
+music_lib_path_replacements = [
+    { from = '[\\/]',        to = "_" },
+    { from = '^\.',          to = "_" },
+    { from = '[\x00-\x1f]',  to = "_" },
+    { from = '[<>:"\?\*\|]', to = "_" },
+    { from = '\.$',          to = "_" },
+    { from = '\s+$',         to = ""  },
+    { from = '^\s+',         to = ""  },
+    { from = '^-',           to = "_"  },
+]
+# this regex gets matched agains the actual music file to get the actual track name.
+# it should filter out stuff like file extensions, track numbers etc.
+music_lib_file_regex = '\d+ (.+)\.\w+'
+
 
 [page]
 birthday = "2000-01-01"
@@ -37,4 +70,4 @@ name_match = "Visual Studio Code" # matches the name of the app (regex)
 new_title = "coding"              # changes "im playing" to "im coding"
 hide_name = true                  # hides the name of the app
 
-# Multiple entries allowed again!
+# Multiple entries allowed again
