@@ -18,10 +18,7 @@ async fn main() {
         .attach_website(&mut root)
         .fallback_service(serve_dir);
 
-    let port = config().get::<u16>("server.port").unwrap_or_else(|_| {
-        eprintln!("Failed to read server.port from config, falling back to port 3001");
-        3001
-    });
+    let port = config().server.port;
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
         .await

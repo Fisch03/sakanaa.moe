@@ -1,4 +1,4 @@
-use crate::config::client;
+use crate::config::config;
 use serde::Deserialize;
 
 use super::types::*;
@@ -69,10 +69,11 @@ async fn do_request<T>(req_type: &str, query: &str) -> Result<T, MBError>
 where
     T: for<'de> Deserialize<'de>,
 {
-    sleep(request_throttle()).await;
-    println!("Requesting {}?{}", req_type, query);
+    let client = config().server.client();
 
-    let res = client()
+    sleep(request_throttle()).await;
+
+    let res = client
         .get(&format!(
             "https://musicbrainz.org/ws/2/{}/{}&fmt=json",
             req_type, query,

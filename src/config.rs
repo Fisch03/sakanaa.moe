@@ -1,36 +1,66 @@
+use config::Config;
+use serde::Deserialize;
 use std::sync::OnceLock;
 
-use config::Config;
+use crate::api::ApiConfig;
+use crate::components::PageConfig;
+use crate::db::DBConfig;
 
-pub fn config() -> &'static Config {
-    static CONFIG: OnceLock<Config> = OnceLock::new();
+#[derive(Debug, Deserialize)]
+pub struct ConfigRoot {
+    pub server: ServerConfig,
+    pub db: DBConfig,
+    pub page: PageConfig,
+    pub api: ApiConfig,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ServerConfig {
+    pub port: u16,
+
+    user_agent: String,
+    contact: String,
+
+    #[serde(skip)]
+    client: Option<reqwest::Client>,
+}
+
+pub fn config() -> &'static ConfigRoot {
+    static CONFIG: OnceLock<ConfigRoot> = OnceLock::new();
     CONFIG.get_or_init(|| {
-        Config::builder()
+        let config = Config::builder()
             .add_source(config::File::with_name("config/default"))
             .add_source(config::File::with_name("config/local").required(false))
             .build()
-            .expect("Failed to build config")
+            .expect("Failed to build config");
+
+        let mut config: ConfigRoot = config
+            .try_deserialize()
+            .expect("Failed to deserialize config");
+
+        config.server.build_client();
+
+        config
     })
 }
 
-pub fn client() -> &'static reqwest::Client {
-    // Global client for making requests that already has the correct user agent
-    pub static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
-    CLIENT.get_or_init(|| {
-        let user_agent = config()
-            .get::<String>("server.user_agent")
-            .expect("Missing server.user_agent in config")
-            .replace("{version}", env!("CARGO_PKG_VERSION"))
-            .replace(
-                "{contact}",
-                &config()
-                    .get::<String>("server.contact")
-                    .expect("Missing server.contact in config"),
-            );
+impl ServerConfig {
+    pub fn client(&self) -> &reqwest::Client {
+        self.client.as_ref().expect("Client not built")
+    }
 
-        reqwest::Client::builder()
-            .user_agent(&user_agent)
-            .build()
-            .expect("Failed to build reqwest client")
-    })
+    fn build_client(&mut self) {
+        let user_agent = &self
+            .user_agent
+            .replace("{version}", env!("CARGO_PKG_VERSION"))
+            .replace("{contact}", &self.contact);
+
+        self.client = Some(
+            reqwest::Client::builder()
+                .user_agent(user_agent)
+                .build()
+                .expect("Failed to build reqwest client"),
+        );
+        self.user_agent = user_agent.clone();
+    }
 }

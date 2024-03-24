@@ -1,6 +1,6 @@
 use super::super::audio_processing::get_metadata;
 use super::super::types::{UnprocessedAlbum, UnprocessedArtist, UnprocessedTrack};
-use super::AudioDataSource;
+use super::MusicDataSource;
 use crate::config::config;
 
 use anyhow::{Context, Result};
@@ -10,8 +10,16 @@ use serde::Deserialize;
 use std::path::PathBuf;
 use tokio::fs::{self, DirEntry};
 
+#[derive(Debug, Deserialize)]
+pub struct MusicLibConfig {
+    path: PathBuf,
+    path_replacements: Vec<PathReplaceFilter>,
+    #[serde(with = "serde_regex")]
+    file_regex: regex::Regex,
+}
+
 #[derive(Debug, Deserialize, Clone)]
-struct PathReplaceFilter {
+pub struct PathReplaceFilter {
     #[serde(with = "serde_regex")]
     from: regex::Regex,
     to: String,
@@ -22,39 +30,17 @@ impl PathReplaceFilter {
     }
 }
 
-pub struct FsLibrarySource {
-    source_path: String,
-
-    replace_regexes: Vec<PathReplaceFilter>,
-    filename_regex: regex::Regex,
-}
+pub struct FsLibrarySource {}
 
 impl FsLibrarySource {
     pub fn new() -> Self {
-        let source_path = config().get::<String>("files.music_lib").unwrap();
-
-        let replace_regexes = config()
-            .get_array("files.music_lib_path_replacements")
-            .unwrap_or(Vec::new());
-        let replace_regexes = replace_regexes
-            .into_iter()
-            .filter_map(|filter| filter.try_deserialize().ok())
-            .collect();
-
-        let filename_regex = config()
-            .get::<String>("files.music_lib_file_regex")
-            .map(|regex| regex::Regex::new(&regex).unwrap())
-            .unwrap();
-
-        Self {
-            source_path,
-            replace_regexes,
-            filename_regex,
-        }
+        Self {}
     }
 
     fn apply_replacements(&self, path: &str) -> String {
-        self.replace_regexes
+        let path_replacements = &config().db.music.pipeline.fs_library.path_replacements;
+
+        path_replacements
             .iter()
             .fold(path.to_string(), |path, filter| filter.apply(&path))
     }
@@ -97,12 +83,15 @@ impl FsLibrarySource {
 }
 
 #[async_trait]
-impl AudioDataSource for FsLibrarySource {
+impl MusicDataSource for FsLibrarySource {
     async fn lookup_track(
         &self,
         mut track: UnprocessedTrack,
         replace: bool,
     ) -> Result<UnprocessedTrack> {
+        let source_path = &config().db.music.pipeline.fs_library.path;
+        let filename_regex = &config().db.music.pipeline.fs_library.file_regex;
+
         let name = self.apply_replacements(&track.name);
 
         let path;
@@ -116,7 +105,7 @@ impl AudioDataSource for FsLibrarySource {
             let artist = self.apply_replacements(&track.artist.as_ref().context("No artist")?.name);
             let artist_lower = artist.to_lowercase();
 
-            let dir = PathBuf::from(&self.source_path);
+            let dir = PathBuf::from(source_path);
 
             let artist_dirs = self
                 .find_within_dir(&dir, false, |entry_name| match entry_name.as_ref() {
@@ -164,7 +153,7 @@ impl AudioDataSource for FsLibrarySource {
                         return false;
                     }
 
-                    self.filename_regex.captures(entry_name).map_or_else(
+                    filename_regex.captures(entry_name).map_or_else(
                         || false,
                         |captures| {
                             if let Some(entry_name) =

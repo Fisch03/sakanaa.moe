@@ -3,12 +3,16 @@ use crate::config::config;
 use chrono::prelude::*;
 use maud::{html, Markup};
 
+use serde::Deserialize;
+#[derive(Debug, Deserialize)]
+pub struct AboutMeConfig {
+    birthday: String,
+}
+
 pub fn about_me() -> Markup {
     //yes, this is completely overkill :P
     let now = Utc::now();
-    let config_date = config()
-        .get::<String>("page.birthday")
-        .expect("page.birthday not set in config");
+    let config_date = &config().page.about_me.birthday;
 
     let birthdate = config_date.split('-').collect::<Vec<&str>>();
     if birthdate.len() != 3 {

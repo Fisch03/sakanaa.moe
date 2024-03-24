@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Artist {
     pub id: i64,
     pub mbid: Option<String>,
@@ -35,7 +35,7 @@ impl UnprocessedArtist {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Album {
     pub id: i64,
     pub mbid: Option<String>,
@@ -74,7 +74,7 @@ impl UnprocessedAlbum {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Track {
     pub id: i64,
     pub mbid: Option<String>,

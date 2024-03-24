@@ -1,4 +1,8 @@
-use crate::config::{client, config};
+use anyhow::Result;
+use reqwest::header;
+use serde::Deserialize;
+
+use crate::config::config;
 use crate::db::{
     db,
     music::{self, MusicDBExt, UnprocessedAlbum, UnprocessedTrack},
@@ -6,22 +10,13 @@ use crate::db::{
 
 use super::types::*;
 
-use anyhow::Result;
-use reqwest::header;
-use serde::Deserialize;
-use std::sync::OnceLock;
-
-fn api_key() -> &'static String {
-    pub static LASTFM_API_KEY: OnceLock<String> = OnceLock::new();
-    LASTFM_API_KEY.get_or_init(|| {
-        config()
-            .get::<String>("lastfm.api_key")
-            .expect("Missing lastfm.api_key in config")
-            .to_string()
-    })
+#[derive(Debug, Deserialize)]
+pub struct LastFMConfig {
+    user: String,
+    api_key: String,
 }
 
-pub async fn get_current_track(user: &str) -> Result<Option<music::Track>> {
+pub async fn get_current_track() -> Result<Option<music::Track>> {
     // i love the last.fm api /s
     #[derive(Debug, Deserialize)]
     struct Attr {
@@ -48,6 +43,8 @@ pub async fn get_current_track(user: &str) -> Result<Option<music::Track>> {
     struct RecentTracksResponse {
         recenttracks: RecentTracksResponseInner,
     }
+
+    let user = &config().api.lastfm.user;
 
     let res: RecentTracksResponse = do_request(
         "user.getRecentTracks",
@@ -152,12 +149,15 @@ async fn do_request<T>(method: &str, params: &[String]) -> Result<T>
 where
     T: for<'de> Deserialize<'de>,
 {
-    let res = client()
+    let client = config().server.client();
+    let api_key = &config().api.lastfm.api_key;
+
+    let res = client
         .post("https://ws.audioscrobbler.com/2.0/")
         .header(header::CONTENT_TYPE, "application/x-www-form-urlencoded")
         .body(format!(
             "api_key={}&method={}&format=json&{}",
-            api_key(),
+            api_key,
             method,
             params.join("&")
         ))

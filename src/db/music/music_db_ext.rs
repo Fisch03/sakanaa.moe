@@ -5,18 +5,11 @@ use dlhn::{Deserializer, Serializer};
 use serde::{Serialize, Deserialize};
 use futures::executor;
 use axum::async_trait;
-use tokio::sync::OnceCell;
 
 use super::super::{ConnectedDB, db};
 use super::types::*;
 use super::audio_processing;
-use super::audio_lookup_pipeline::AudioLookupPipeline;
-
-async fn lookup_pipeline() -> &'static AudioLookupPipeline {
-    static PIPELINE: OnceCell<AudioLookupPipeline> = OnceCell::const_new();
-    PIPELINE.get_or_init(|| async { AudioLookupPipeline::new() })
-        .await
-}
+use super::music_lookup_pipeline::MusicLookupPipeline;
 
 #[async_trait]
 pub trait MusicDBExt {
@@ -43,7 +36,7 @@ impl MusicDBExt for ConnectedDB {
         }
 
         // track not found in db, try to find more metadata 
-        let track = lookup_pipeline().await.lookup_track(track).await;
+        let track = MusicLookupPipeline::new().lookup_track(track).await;
 
         
         // insert newly found metadata into db
@@ -190,13 +183,8 @@ async fn insert_track_into_db(db: &ConnectedDB, track: UnprocessedTrack) -> Resu
                         params![album_artist.name, album_artist.mbid],
                         |row| row.get::<_, i64>(0),
                     ).ok().map(|album_artist_id| Artist::new(album_artist.clone(), album_artist_id))
-                }).flatten();
-
-
-                if album_artist.is_none() {
-                    return None;
-                }
-
+                }).flatten().unwrap_or(artist.clone());
+ 
                 db.query_row(
                     "
                      INSERT INTO albums (name, mbid, artistId) VALUES (?, ?, ?) 
@@ -205,7 +193,7 @@ async fn insert_track_into_db(db: &ConnectedDB, track: UnprocessedTrack) -> Resu
                     ",
                     params![album.name, album.mbid, artist_id],
                     |row| row.get::<_, i64>(0),
-                ).ok().map(|album_id| Album::new(album.clone(), album_id, album_artist.unwrap()))
+                ).ok().map(|album_id| Album::new(album.clone(), album_id, album_artist))
             }).flatten();
 
             let file = track.file.as_ref().map(|file| file.to_string_lossy().to_string());

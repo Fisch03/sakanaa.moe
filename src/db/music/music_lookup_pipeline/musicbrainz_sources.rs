@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use axum::async_trait;
 
 use super::super::types::{UnprocessedAlbum, UnprocessedArtist, UnprocessedTrack};
-use super::AudioDataSource;
+use super::MusicDataSource;
 use crate::api::musicbrainz::{self, MBError};
 
 pub struct MusicBrainzLookupSource {}
@@ -13,7 +13,7 @@ impl MusicBrainzLookupSource {
 }
 
 #[async_trait]
-impl AudioDataSource for MusicBrainzLookupSource {
+impl MusicDataSource for MusicBrainzLookupSource {
     async fn lookup_track(
         &self,
         mut track: UnprocessedTrack,
@@ -103,7 +103,7 @@ impl MusicBrainzSearchSource {
 }
 
 #[async_trait]
-impl AudioDataSource for MusicBrainzSearchSource {
+impl MusicDataSource for MusicBrainzSearchSource {
     async fn lookup_track(
         &self,
         track: UnprocessedTrack,

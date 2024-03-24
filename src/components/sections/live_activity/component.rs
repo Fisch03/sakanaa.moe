@@ -6,13 +6,18 @@ use crate::dyn_component::*;
 
 use axum::{extract::State, routing::get};
 
+use serde::Deserialize;
+#[derive(Debug, Deserialize, Clone)]
+pub struct LiveActivityConfig {
+    #[serde(default)]
+    music_filters: Vec<MusicActivityFilter>,
+    #[serde(default)]
+    custom_filters: Vec<CustomActivityFilter>,
+}
+
 #[derive(Debug)]
 pub struct LiveActivityComponent {
-    discord_user_id: String,
-    discord_music_activity_filter: Vec<MusicActivityFilter>,
-    discord_custom_activity_filter: Vec<CustomActivityFilter>,
-
-    lastfm_user: String,
+    config: LiveActivityConfig,
 
     activity: LiveActivity,
     render_endpoint: String,
@@ -23,9 +28,9 @@ pub struct LiveActivityComponent {
 
 impl LiveActivityComponent {
     async fn fetch_lanyard_live_activity(&self) -> Option<LiveActivity> {
-        let response = LanyardResponse::fetch(&self.discord_user_id).await.ok()?;
+        let response = LanyardResponse::fetch().await.ok()?;
 
-        LiveActivity::from_lanyard_response(response, &self.discord_music_activity_filter).ok()
+        LiveActivity::from_lanyard_response(response, &self.config.music_filters).ok()
     }
 
     async fn update(&mut self) {
@@ -45,7 +50,7 @@ impl LiveActivityComponent {
         }
 
         if new_activity.music_activity.is_none() {
-            new_activity.music_activity = get_current_track(&self.lastfm_user)
+            new_activity.music_activity = get_current_track()
                 .await
                 .ok()
                 .flatten()
@@ -60,14 +65,14 @@ impl LiveActivityComponent {
 
         api.last_request = Some(std::time::Instant::now());
 
-        api.activity.render(&api.discord_custom_activity_filter)
+        api.activity.render(&api.config.custom_filters)
     }
 }
 
 impl Render for LiveActivityComponent {
     fn render(&self) -> Markup {
         section_raw(
-            self.activity.render(&self.discord_custom_activity_filter),
+            self.activity.render(&self.config.custom_filters),
             &SectionConfig {
                 id: Some("Discord"),
                 htmx: Some(HTMXConfig {
@@ -83,33 +88,12 @@ impl Render for LiveActivityComponent {
 #[async_trait]
 impl DynamicComponent for LiveActivityComponent {
     fn new(full_path: &str) -> Result<ComponentDescriptor> {
-        let discord_user_id = config().get::<String>("discord.user_id")?;
-        let discord_music_activity_filter = config()
-            .get_array("discord.activity_filters.music")
-            .unwrap_or(Vec::new());
-        let discord_music_activity_filter = discord_music_activity_filter
-            .into_iter()
-            .filter_map(|filter| filter.try_deserialize().ok())
-            .collect();
-
-        let discord_custom_activity_filter = config()
-            .get_array("discord.activity_filters.custom")
-            .unwrap_or(Vec::new());
-        let discord_custom_activity_filter = discord_custom_activity_filter
-            .into_iter()
-            .filter_map(|filter| filter.try_deserialize().ok())
-            .collect();
-
-        let lastfm_user = config().get::<String>("lastfm.user")?;
+        let config = config().page.live_activity.clone();
 
         let component = Arc::new(Mutex::new(Self {
+            config,
+
             render_endpoint: full_path.to_string(),
-
-            discord_user_id,
-            discord_music_activity_filter,
-            discord_custom_activity_filter,
-
-            lastfm_user,
 
             activity: LiveActivity::default(),
 

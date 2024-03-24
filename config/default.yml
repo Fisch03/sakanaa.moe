@@ -1,0 +1,71 @@
+server:
+  port: 3001
+  
+  # User Agent used for requests to external services. 
+  # {version} will be replaced with the current version of the server 
+  # {contact} will be replaced with the value of the server.contact field below
+  user_agent: "sakanaa.moe/{version} ({contact})" 
+
+  # some apis (namely the musicbrainz api) want the user agent to contain contact information in the form of an email or url.
+  # this field will be used to fill this contact informaion in the user agent 
+  contact: "https://cool_website.com"
+
+db:
+  path: "./db.sqlite"
+
+  music:
+    # path to the music library. 
+    # library currently has to be organized in a artist/album/track fashion.
+    path: "/path/to/music/lib"
+
+    # if a regex in the 'from' field is encountered in a song path, 
+    # it will be replaced with the 'to' characters before looking it up in the music library. 
+    # these defaults are the ones also used by beets
+    path_replacements:
+      - { from: '[\\/]',        to: "_" }
+      - { from: '^\.',          to: "_" }
+      - { from: '[\x00-\x1f]',  to: "_" }
+      - { from: '[<>:"\?\*\|]', to: "_" }
+      - { from: '\.$',          to: "_" }
+      - { from: '\s+$',         to: ""  }
+      - { from: '^\s+',         to: ""  }
+      - { from: '^-',           to: "_" }
+
+    # this regex gets matched agains the actual music file to get the actual track name.
+    # it should filter out stuff like file extensions, track numbers etc.
+    file_regex: '\d+ (.+)\.\w+'
+
+api:
+  misskey:
+    base_url: "https://misskey.io"
+    user_id: "7rkrarq81i"
+
+  discord:
+    user_id: "123456789012345678"
+
+  lastfm:
+    user: "very_cool_username"
+    api_key: "123456890abcdefghijklmnopqrstuvw"
+
+page:
+  about_me:
+    birthday: "2000-01-01"
+
+  live_activity:
+    music_filters:
+      # Vendetta last.fm integration (mobile)
+      - name_match: "music on my phone" # matches the name of the app (regex)
+        title_src:  "details"           # where to get the song title from
+      # title_match:                    # optional, regex to match the title (regex, capture group 1 is used)
+        artist_src: "state"             # where to get the artist from
+        artist_match: "by (.+)"         # regex to match the artist (regex, capture group 1 is used)
+        album_src: "large_text"         # where to get the album from
+        album_match: "on (.+)"          # regex to match the album (regex, capture group 1 is used)
+
+    custom_filters:
+      # VSCode
+      - name_match: "Visual Studio Code" # matches the name of the app (regex)
+        new_title: "coding"              # changes "im playing" to "im coding"
+        hide_name: true                  # hides the name of the app
+
+

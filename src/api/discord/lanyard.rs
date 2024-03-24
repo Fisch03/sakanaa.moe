@@ -1,8 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::config::client;
-
 use super::types::*;
+use crate::config::config;
+
+#[derive(Debug, Deserialize)]
+pub struct DiscordConfig {
+    user_id: String,
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SpotifyData {
@@ -47,8 +51,11 @@ pub struct LanyardResponse {
 pub struct MissingDataError;
 
 impl LanyardResponse {
-    pub async fn fetch(user_id: &String) -> Result<Self, reqwest::Error> {
-        let res = client()
+    pub async fn fetch() -> Result<Self, reqwest::Error> {
+        let client = config().server.client();
+        let user_id = &config().api.discord.user_id;
+
+        let res = client
             .get(format!("https://api.lanyard.rest/v1/users/{}", user_id))
             .send()
             .await?
