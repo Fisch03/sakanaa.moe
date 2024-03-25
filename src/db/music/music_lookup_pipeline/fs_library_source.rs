@@ -1,4 +1,4 @@
-use super::super::audio_processing::get_metadata;
+use super::super::audio_processing::metadata::Metadata;
 use super::super::types::{UnprocessedAlbum, UnprocessedArtist, UnprocessedTrack};
 use super::MusicDataSource;
 use crate::config::config;
@@ -185,7 +185,7 @@ impl MusicDataSource for FsLibrarySource {
         }
 
         // actually get the metadata and merge it into the track
-        if let Ok(metadata) = get_metadata(path) {
+        if let Ok(metadata) = Metadata::from_file(path) {
             let artist = metadata.artist.map(|name| UnprocessedArtist {
                 mbid: metadata.mb_artist,
                 name,

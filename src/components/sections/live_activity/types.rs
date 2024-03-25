@@ -63,8 +63,14 @@ pub struct MusicActivity {
     pub album: Option<String>,
 }
 
-impl From<Track> for MusicActivity {
-    fn from(track: Track) -> Self {
+impl MusicActivity {
+    pub fn from(track: Track, album_art_url: &str) -> Self {
+        let album_artist = track.album.as_ref().map(|album| album.artist.name.clone());
+        let album_name = track.album.as_ref().map(|album| album.name.clone());
+
+        // append the track name to the album art url to prevent caching issues
+        let album_art_url = format!("{}?{}", album_art_url.to_string(), &track.name);
+
         MusicActivity {
             timestamps: ActivityTimestamps {
                 start: None,
@@ -72,9 +78,9 @@ impl From<Track> for MusicActivity {
             },
             song_title: track.name,
             artist: Some(track.artist.name),
-            album_artist: None,
-            album_art: None, //TODO: fetch this from musicbrainz or library (same as music section)
-            album: None,
+            album_artist,
+            album_art: Some(album_art_url),
+            album: album_name,
         }
     }
 }

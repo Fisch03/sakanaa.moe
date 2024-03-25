@@ -34,7 +34,6 @@ impl Zerox20ButtonComponent {
 impl Render for Zerox20ButtonComponent {
     fn render(&self) -> Markup {
         html! {
-            script src="js/0x20.js" {}
             button id="0x20Btn"  class="music_reactive" { (filtered_image("assets/music.png")) }
         }
     }
@@ -62,6 +61,7 @@ impl DynamicComponent for Zerox20ButtonComponent {
         Ok(ComponentDescriptor {
             component,
             router: Some(router),
+            script_paths: Some(vec!["js/0x20.js".into(), "js/howler.min.js".into()]),
         })
     }
 

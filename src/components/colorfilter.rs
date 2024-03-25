@@ -35,7 +35,5 @@ pub fn colorfilter() -> Markup {
                 }
             }
         }
-        script src="js/!palettes.js" {}
-        script src="js/colors.js" {}
     }
 }

@@ -1,9 +1,10 @@
-use maud::{html, Markup};
+use maud::html;
 
 use crate::components::*;
+use crate::dyn_component::JSComponent;
 
-pub fn navigation(entries: Vec<(&str, &str)>) -> Markup {
-    section(
+pub fn navigation(entries: Vec<(&str, &str)>) -> JSComponent {
+    let render = section(
         "navigation",
         html! {
             div class="tabs vertical" {
@@ -11,7 +12,6 @@ pub fn navigation(entries: Vec<(&str, &str)>) -> Markup {
                     button data-target=(target_id) { (name) }
                 }
             }
-            script src="js/tabs.js" {}
         },
         &SectionConfig {
             id: Some("Navigation"),
@@ -19,5 +19,7 @@ pub fn navigation(entries: Vec<(&str, &str)>) -> Markup {
             hidden_on_mobile: true,
             ..Default::default()
         },
-    )
+    );
+
+    JSComponent::new(render, vec!["js/tabs.js".into()])
 }

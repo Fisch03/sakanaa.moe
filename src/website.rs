@@ -1,6 +1,7 @@
-use anyhow::{bail, Result};
-use axum::Router;
-use maud::{html, Markup, Render, DOCTYPE};
+use anyhow::Result;
+use axum::{routing::get, Router};
+use maud::{html, Markup, DOCTYPE};
+use std::path::{Path, PathBuf};
 
 use crate::components::colorfilter;
 use crate::dyn_component::{DynamicComponentConstructor, SharedDynamicComponent};
@@ -35,17 +36,69 @@ impl Runner {
 
 pub struct Website {
     title: String,
-    pub content: Markup,
+    content: Markup,
+    script_paths: Vec<PathBuf>,
 
     router: Router,
     router_path: String,
 
     runners: Vec<Runner>,
-    frozen: bool,
 }
 
-impl Render for Website {
-    fn render(&self) -> Markup {
+impl Website {
+    pub fn new(title: &str, router_path: &str) -> Self {
+        let router = Router::new();
+
+        let runners = Vec::new();
+
+        Self {
+            title: title.to_string(),
+            content: html! {},
+            script_paths: vec![
+                "js/!palettes.js".into(),
+                "js/colors.js".into(),
+                "js/htmx.min.js".into(),
+            ],
+
+            router,
+            router_path: router_path.to_string(),
+
+            runners,
+        }
+    }
+
+    pub fn set_content(&mut self, content: Markup) {
+        self.content = content;
+    }
+
+    pub fn add_dynamic_component(
+        &mut self,
+        name: &str,
+        constructor: DynamicComponentConstructor,
+    ) -> Result<SharedDynamicComponent> {
+        let path = format!("/{}", name.trim_start_matches("/"));
+        let full_path = format!("{}{}", &self.router_path, &path);
+        let descriptor = constructor(&full_path)?;
+
+        if let Some(component_router) = descriptor.router {
+            self.router = self.router.clone().nest(&path, component_router);
+        }
+
+        if let Some(component_script_paths) = descriptor.script_paths {
+            self.script_paths.extend(component_script_paths);
+        }
+
+        let runner = Runner::new(descriptor.component.clone());
+        self.runners.push(runner);
+
+        Ok(descriptor.component)
+    }
+
+    pub fn add_scripts(&mut self, paths: Vec<PathBuf>) {
+        self.script_paths.extend(paths);
+    }
+
+    fn render(&mut self, script_src: &str) -> Markup {
         html! {
             (DOCTYPE)
             html lang="en" {
@@ -60,61 +113,34 @@ impl Render for Website {
                     (colorfilter())
                     (self.content)
                 }
-
-                script src="js/htmx.min.js" {}
-                script src="js/howler.min.js" {}
+                script src=(script_src) {}
             }
         }
     }
-}
 
-impl Website {
-    pub fn new(title: &str, router_path: &str) -> Self {
-        let router = Router::new();
-
-        let runners = Vec::new();
-
-        Self {
-            title: title.to_string(),
-            content: html! {},
-            router,
-            router_path: router_path.to_string(),
-            runners,
-            frozen: false,
-        }
-    }
-
-    pub fn add_dynamic_component(
-        &mut self,
-        name: &str,
-        constructor: DynamicComponentConstructor,
-    ) -> Result<SharedDynamicComponent> {
-        if self.frozen {
-            bail!("Website is frozen");
-        }
-        let path = format!("/{}", name.trim_start_matches("/"));
-        let full_path = format!("{}{}", &self.router_path, &path);
-        let descriptor = constructor(&full_path)?;
-
-        if let Some(component_router) = descriptor.router {
-            self.router = self.router.clone().nest(&path, component_router);
+    fn merge_scripts(&self) -> Vec<u8> {
+        let mut out = Vec::new();
+        for path in &self.script_paths {
+            let path = Path::new("static/").join(path);
+            let script = std::fs::read_to_string(path).unwrap();
+            out.extend(script.as_bytes());
         }
 
-        let runner = Runner::new(descriptor.component.clone());
-        self.runners.push(runner);
-
-        Ok(descriptor.component)
+        out
     }
 }
 
 pub type WebsiteRouter = Router<()>;
 pub trait AttachWebsite {
-    fn attach_website(self, website: &mut Website) -> Self;
+    fn attach_website(self, website: Website) -> Self;
 }
 
 impl AttachWebsite for WebsiteRouter {
-    fn attach_website(self, website: &mut Website) -> Self {
-        website.frozen = true;
-        self.nest(&website.router_path, website.router.clone())
+    fn attach_website(self, mut website: Website) -> Self {
+        let minified_scripts = website.merge_scripts();
+
+        self.route("/script.js", get(minified_scripts))
+            .route("/", get(Website::render(&mut website, "/script.js")))
+            .nest(&website.router_path, website.router.clone())
     }
 }

@@ -1,5 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+pub use super::audio_processing::bpm::BeatEvent;
+use super::audio_processing::metadata::CoverArt;
 
 #[derive(Debug, Clone)]
 pub struct Artist {
@@ -83,7 +85,7 @@ pub struct Track {
     pub artist: Artist,
     pub album: Option<Album>,
     pub file: Option<PathBuf>,
-    // TODO: cover art
+    pub cover: Option<CoverArt>,
 }
 impl Track {
     pub fn new(
@@ -92,11 +94,18 @@ impl Track {
         artist: Artist,
         album: Option<Album>,
     ) -> Self {
+        let cover = if let Some(file) = &unprocessed.file {
+            CoverArt::from_file(file).ok()
+        } else {
+            None
+        };
+
         Self {
             id,
             mbid: unprocessed.mbid,
             name: unprocessed.name,
             beatevents: unprocessed.beatevents.unwrap_or_default(),
+            cover,
             artist,
             album,
             file: unprocessed.file,
@@ -151,15 +160,4 @@ impl UnprocessedTrack {
             && self.album.as_ref().map_or(false, |a| a.is_ready())
             && self.file.is_some()
     }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum BeatEventType {
-    BPM(f32),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BeatEvent {
-    pub time_ms: u64,
-    pub event_type: BeatEventType,
 }

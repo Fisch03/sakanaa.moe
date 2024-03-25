@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use anyhow::{Result, bail};
 use tokio_rusqlite::params;
 use dlhn::{Deserializer, Serializer};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use futures::executor;
 use axum::async_trait;
 
@@ -31,7 +31,7 @@ impl MusicDBExt for ConnectedDB {
         let found_track = lookup_track_in_db(&self, &track).await;
 
         if let Some(track) = found_track {
-            dbg!("Track already in db", start.elapsed());
+            println!("Track already in db");
             return Ok(track);
         }
 
@@ -50,7 +50,7 @@ impl MusicDBExt for ConnectedDB {
         }
         
 
-        dbg!("Track inserted into db", start.elapsed());
+        println!("Track inserted into db, took {:?}", start.elapsed());
         Ok(dbg!(track))
     }
 }
@@ -59,7 +59,7 @@ impl MusicDBExt for ConnectedDB {
 /// when done, store [BeatData] in the db
 /// this is a very cpu intensive task and should be run on a seperate thread
 fn analyze_and_store_file(path: PathBuf, track_id: i64) {
-    if let Ok(processed) = audio_processing::analyze_file(path) {
+    if let Ok(processed) = audio_processing::bpm::analyze_file(path) {
         let mut serialized = Vec::new();
         let mut serializer = Serializer::new(&mut serialized);
         processed.beat_data.serialize(&mut serializer).unwrap();
@@ -128,6 +128,14 @@ async fn lookup_track_in_db(db: &ConnectedDB, track: &UnprocessedTrack) -> Optio
                     Vec::<BeatEvent>::deserialize(&mut deserializer).unwrap() 
                 }); 
 
+                let file = file.map(|file| PathBuf::from(file));
+                let cover = if let Some(file) = &file {
+                    audio_processing::metadata::CoverArt::from_file(file).ok()
+                } else {
+                    None
+                };
+
+
                 Ok(Track {
                     id: row.get(0)?,
                     mbid: row.get(1)?,
@@ -135,7 +143,8 @@ async fn lookup_track_in_db(db: &ConnectedDB, track: &UnprocessedTrack) -> Optio
                     beatevents: beat_events,
                     // artistID: row.get(4)?,
                     // albumID: row.get(5)?,
-                    file: file.map(|file| PathBuf::from(file)),
+                    file,
+                    cover,
                     artist: Artist {
                         id: row.get(7)?,
                         mbid: row.get(8)?,

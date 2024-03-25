@@ -1,15 +1,37 @@
 pub use anyhow::Result;
 pub use axum::{async_trait, Router};
 pub use maud::{html, Markup, Render};
+pub use std::path::PathBuf;
 pub use std::sync::Arc;
 pub use tokio::sync::Mutex;
+
+use crate::website::Website;
+
+pub struct JSComponent {
+    render: Markup,
+    script_paths: Vec<PathBuf>,
+}
+impl JSComponent {
+    pub fn new(render: Markup, script_paths: Vec<PathBuf>) -> Self {
+        Self {
+            render,
+            script_paths,
+        }
+    }
+
+    pub fn render(self, website: &mut Website) -> Markup {
+        website.add_scripts(self.script_paths);
+
+        self.render
+    }
+}
 
 pub type SharedDynamicComponent = Arc<Mutex<dyn DynamicComponent>>;
 pub type DynamicComponentConstructor = fn(&str) -> Result<ComponentDescriptor>;
 pub struct ComponentDescriptor {
     pub component: SharedDynamicComponent,
     pub router: Option<Router>,
-    //TODO: add a way for a component to return used javascript files, so they can be included at the end of the page
+    pub script_paths: Option<Vec<PathBuf>>,
 }
 
 #[async_trait]

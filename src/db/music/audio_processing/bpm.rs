@@ -1,15 +1,13 @@
 use anyhow::{Context, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::path::Path;
-
-use super::types::{BeatEvent, BeatEventType};
 
 use symphonia::core::{
     audio::SampleBuffer,
     codecs::{DecoderOptions, CODEC_TYPE_NULL},
     formats::FormatOptions,
     io::MediaSourceStream,
-    meta::{MetadataOptions, MetadataRevision, StandardTagKey, Value},
+    meta::MetadataOptions,
     probe::Hint,
 };
 
@@ -17,90 +15,6 @@ use mp3lame_encoder::{Builder, FlushNoGap, InterleavedPcm, MonoPcm};
 
 use aubio_rs::{Smpl, Tempo};
 const I16_TO_SMPL: Smpl = 1.0 / (1 << 16) as Smpl;
-
-#[derive(Debug, Default)]
-pub struct Metadata {
-    pub track: Option<String>,
-    pub mb_track: Option<String>,
-
-    pub artist: Option<String>,
-    pub mb_artist: Option<String>,
-
-    pub album_artist: Option<String>,
-    pub mb_album_artist: Option<String>,
-
-    pub album: Option<String>,
-    pub mb_album: Option<String>,
-}
-impl From<&MetadataRevision> for Metadata {
-    fn from(revision: &MetadataRevision) -> Self {
-        let mut metadata = Self::default();
-
-        revision.tags().iter().for_each(|tag| {
-            if let Some(key) = tag.std_key {
-                let value = match &tag.value {
-                    Value::String(value) => value.to_string(),
-                    _ => return,
-                };
-
-                match key {
-                    StandardTagKey::TrackTitle => metadata.track = Some(value),
-                    StandardTagKey::MusicBrainzTrackId => metadata.mb_track = Some(value),
-
-                    StandardTagKey::Artist => metadata.artist = Some(value),
-                    StandardTagKey::MusicBrainzArtistId => metadata.mb_artist = Some(value),
-
-                    StandardTagKey::AlbumArtist => metadata.album_artist = Some(value),
-                    StandardTagKey::MusicBrainzAlbumArtistId => {
-                        metadata.mb_album_artist = Some(value)
-                    }
-
-                    StandardTagKey::Album => metadata.album = Some(value),
-                    StandardTagKey::MusicBrainzAlbumId => metadata.mb_album = Some(value),
-                    _ => {}
-                }
-            }
-        });
-
-        metadata
-    }
-}
-
-pub fn get_metadata<P: AsRef<Path>>(path: P) -> Result<Metadata> {
-    let file = std::fs::File::open(path)?;
-    let stream = MediaSourceStream::new(Box::new(file), Default::default());
-
-    let hint: Hint = Default::default();
-    let meta_opts: MetadataOptions = Default::default();
-    let fmt_opts: FormatOptions = Default::default();
-
-    let mut probed =
-        symphonia::default::get_probe().format(&hint, stream, &fmt_opts, &meta_opts)?;
-
-    let mut format = probed.format;
-
-    let mut found_metadata = None;
-    if let Some(mut metadata) = probed.metadata.get() {
-        if let Some(revision) = metadata.skip_to_latest() {
-            dbg!(&revision);
-            found_metadata = Some(Metadata::from(revision));
-        }
-    }
-
-    if found_metadata.is_none() {
-        if let Some(metadata) = format.metadata().current() {
-            found_metadata = Some(Metadata::from(metadata));
-        }
-    }
-
-    Ok(found_metadata.context("No metadata found")?)
-}
-
-#[derive(Debug, Serialize)]
-pub struct ProcessedAudio {
-    pub mp3_data: Vec<u8>,
-    pub beat_data: Vec<BeatEvent>,
-}
 
 #[derive(Debug)]
 struct BPMCluster {
@@ -134,7 +48,24 @@ impl BPMCluster {
     }
 }
 
-pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<ProcessedAudio> {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum BeatEventType {
+    BPM(f32),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BeatEvent {
+    pub time_ms: u64,
+    pub event_type: BeatEventType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AnalyzedBPM {
+    pub mp3_data: Vec<u8>,
+    pub beat_data: Vec<BeatEvent>,
+}
+
+pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<AnalyzedBPM> {
     let file = std::fs::File::open(path)?;
     let stream = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -349,7 +280,7 @@ pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<ProcessedAudio> {
         });
     }
 
-    Ok(ProcessedAudio {
+    Ok(AnalyzedBPM {
         mp3_data: mp3_out_buf,
         beat_data,
     })

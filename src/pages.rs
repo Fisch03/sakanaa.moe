@@ -41,7 +41,7 @@ pub async fn root_page(website: &mut Website) -> Markup {
                     ("microblogging", "Microblogging"),
                     ("hardware", "Hardware"),
                     ("uptime", "Uptime"),
-                ]))
+                ]).render(website))
                 (column_spacer())
                 (site_controls(use_dyn!(zerox20)))
             }

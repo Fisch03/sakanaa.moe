@@ -2,9 +2,17 @@ use super::types::*;
 use crate::api::{discord::*, lastfm::*};
 use crate::components::*;
 use crate::config::config;
+use crate::db::music::audio_processing::metadata::CoverArt;
 use crate::dyn_component::*;
+use crate::response_helpers::BinaryResource;
 
-use axum::{extract::State, routing::get};
+use axum::{
+    extract::State,
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Response},
+    routing::get,
+};
+use std::io::{BufWriter, Cursor};
 
 use serde::Deserialize;
 #[derive(Debug, Deserialize, Clone)]
@@ -20,10 +28,24 @@ pub struct LiveActivityComponent {
     config: LiveActivityConfig,
 
     activity: LiveActivity,
+    cover_art: Option<BinaryResource>,
+
     render_endpoint: String,
+    cover_art_endpoint: String,
 
     last_request: Option<std::time::Instant>,
     last_update: Option<std::time::Instant>,
+}
+
+impl CoverArt {
+    fn to_jpg_thumb(&self) -> Vec<u8> {
+        let thumb = self.0.thumbnail(250, 250);
+        let mut thumb_bytes = BufWriter::new(Cursor::new(Vec::new()));
+        thumb
+            .write_to(&mut thumb_bytes, image::ImageFormat::Jpeg)
+            .unwrap();
+        thumb_bytes.into_inner().unwrap().into_inner()
+    }
 }
 
 impl LiveActivityComponent {
@@ -50,11 +72,12 @@ impl LiveActivityComponent {
         }
 
         if new_activity.music_activity.is_none() {
-            new_activity.music_activity = get_current_track()
-                .await
-                .ok()
-                .flatten()
-                .map(|track| track.into());
+            new_activity.music_activity = get_current_track().await.ok().flatten().map(|track| {
+                self.cover_art = track.cover.as_ref().map(|cover| {
+                    BinaryResource::new(cover.to_jpg_thumb(), &track.name, "image/jpeg")
+                });
+                MusicActivity::from(track, &self.cover_art_endpoint)
+            });
         }
 
         self.activity = new_activity;
@@ -66,6 +89,19 @@ impl LiveActivityComponent {
         api.last_request = Some(std::time::Instant::now());
 
         api.activity.render(&api.config.custom_filters)
+    }
+
+    async fn cover_art_handler(
+        State(api): State<Arc<Mutex<LiveActivityComponent>>>,
+        req_headers: HeaderMap,
+    ) -> Response {
+        let api = api.lock().await;
+
+        if let Some(cover_art) = &api.cover_art {
+            cover_art.respond(&req_headers).await
+        } else {
+            StatusCode::NOT_FOUND.into_response()
+        }
     }
 }
 
@@ -90,12 +126,17 @@ impl DynamicComponent for LiveActivityComponent {
     fn new(full_path: &str) -> Result<ComponentDescriptor> {
         let config = config().page.live_activity.clone();
 
+        let render_endpoint = full_path.to_string();
+        let cover_art_endpoint = full_path.to_string() + "/cover_art";
+
         let component = Arc::new(Mutex::new(Self {
             config,
 
-            render_endpoint: full_path.to_string(),
-
             activity: LiveActivity::default(),
+            cover_art: None,
+
+            render_endpoint,
+            cover_art_endpoint,
 
             last_request: None,
             last_update: None,
@@ -103,11 +144,13 @@ impl DynamicComponent for LiveActivityComponent {
 
         let router = Router::new()
             .route("/", get(Self::status_handler))
+            .route("/cover_art", get(Self::cover_art_handler))
             .with_state(component.clone());
 
         Ok(ComponentDescriptor {
             component,
             router: Some(router),
+            script_paths: None,
         })
     }
 

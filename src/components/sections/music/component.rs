@@ -30,6 +30,7 @@ impl DynamicComponent for MusicComponent {
         Ok(ComponentDescriptor {
             component,
             router: None,
+            script_paths: None,
         })
     }
 

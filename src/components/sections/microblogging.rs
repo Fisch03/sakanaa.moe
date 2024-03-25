@@ -37,6 +37,7 @@ impl DynamicComponent for MicrobloggingComponent {
         Ok(ComponentDescriptor {
             component,
             router: Some(router),
+            script_paths: None,
         })
     }
 
