@@ -12,11 +12,11 @@ pub use about_me::AboutMeConfig;
 mod hardware;
 pub use hardware::hardware;
 
-mod music;
-pub use music::MusicComponent;
+//mod music;
+////pub use music::MusicComponent;
 
-mod microblogging;
-pub use microblogging::MicrobloggingComponent;
+//mod microblogging;
+//pub use microblogging::MicrobloggingComponent;
 
 mod site_controls;
 pub use site_controls::site_controls;

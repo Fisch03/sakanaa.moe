@@ -3,11 +3,11 @@ use crate::api::{discord::*, lastfm::*};
 use crate::components::*;
 use crate::config::config;
 use crate::db::music::audio_processing::metadata::CoverArt;
-use crate::dyn_component::*;
 use crate::response_helpers::BinaryResource;
+use fishnet::component::prelude::*;
+use fishnet::htmx;
 
 use axum::{
-    extract::State,
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
@@ -24,14 +24,11 @@ pub struct LiveActivityConfig {
 }
 
 #[derive(Debug)]
-pub struct LiveActivityComponent {
+struct LiveActivityComponentState {
     config: LiveActivityConfig,
 
-    activity: LiveActivity,
+    render: Markup,
     cover_art: Option<BinaryResource>,
-
-    render_endpoint: String,
-    cover_art_endpoint: String,
 
     last_request: Option<std::time::Instant>,
     last_update: Option<std::time::Instant>,
@@ -48,14 +45,14 @@ impl CoverArt {
     }
 }
 
-impl LiveActivityComponent {
+impl LiveActivityComponentState {
     async fn fetch_lanyard_live_activity(&self) -> Option<LiveActivity> {
         let response = LanyardResponse::fetch().await.ok()?;
 
         LiveActivity::from_lanyard_response(response, &self.config.music_filters).ok()
     }
 
-    async fn update(&mut self) {
+    async fn update(&mut self, endpoint: &str) {
         self.last_update = Some(std::time::Instant::now());
 
         let mut new_activity: LiveActivity;
@@ -76,100 +73,87 @@ impl LiveActivityComponent {
                 self.cover_art = track.cover.as_ref().map(|cover| {
                     BinaryResource::new(cover.to_jpg_thumb(), &track.name, "image/jpeg")
                 });
-                MusicActivity::from(track, &self.cover_art_endpoint)
+                MusicActivity::from(track, &format!("{}/cover_art", endpoint))
             });
         }
 
-        self.activity = new_activity;
+        self.render = new_activity.render(&self.config.custom_filters);
     }
+}
 
-    async fn status_handler(State(api): State<Arc<Mutex<LiveActivityComponent>>>) -> Markup {
+pub struct LiveActivityComponent {}
+impl LiveActivityComponent {
+    async fn status_handler(
+        api: Extension<ComponentState<Arc<Mutex<LiveActivityComponentState>>>>,
+    ) -> Markup {
         let mut api = api.lock().await;
 
         api.last_request = Some(std::time::Instant::now());
 
-        api.activity.render(&api.config.custom_filters)
+        api.render.clone()
     }
 
     async fn cover_art_handler(
-        State(api): State<Arc<Mutex<LiveActivityComponent>>>,
+        state: Extension<ComponentState<Arc<Mutex<LiveActivityComponentState>>>>,
         req_headers: HeaderMap,
     ) -> Response {
-        let api = api.lock().await;
+        let state = state.lock().await;
 
-        if let Some(cover_art) = &api.cover_art {
+        if let Some(cover_art) = &state.cover_art {
             cover_art.respond(&req_headers).await
         } else {
             StatusCode::NOT_FOUND.into_response()
         }
     }
-}
 
-impl Render for LiveActivityComponent {
-    fn render(&self) -> Markup {
-        section_raw(
-            self.activity.render(&self.config.custom_filters),
-            &SectionConfig {
-                id: Some("Discord"),
-                htmx: Some(HTMXConfig {
-                    get: &self.render_endpoint,
-                    trigger: "every 5s",
-                }),
-                ..Default::default()
-            },
-        )
-    }
-}
-
-#[async_trait]
-impl DynamicComponent for LiveActivityComponent {
-    fn new(full_path: &str) -> Result<ComponentDescriptor> {
-        let config = config().page.live_activity.clone();
-
-        let render_endpoint = full_path.to_string();
-        let cover_art_endpoint = full_path.to_string() + "/cover_art";
-
-        let component = Arc::new(Mutex::new(Self {
-            config,
-
-            activity: LiveActivity::default(),
+    pub fn new() -> impl BuildableComponent {
+        let state = Arc::new(Mutex::new(LiveActivityComponentState {
+            config: config().page.live_activity.clone(),
+            render: html! {},
             cover_art: None,
-
-            render_endpoint,
-            cover_art_endpoint,
-
             last_request: None,
             last_update: None,
         }));
 
-        let router = Router::new()
+        Component::new("live_activity")
+            .with_state(state.clone())
             .route("/", get(Self::status_handler))
             .route("/cover_art", get(Self::cover_art_handler))
-            .with_state(component.clone());
+            .with_runner(|component_state| {
+                async move {
+                    loop {
+                        let endpoint = component_state.endpoint();
+                        let mut state = component_state.lock().await;
 
-        Ok(ComponentDescriptor {
-            component,
-            router: Some(router),
-            script_paths: None,
-        })
-    }
+                        // If some user on the webpage has requested the status in the last 15 seconds, update the status often
+                        if let Some(last_request) = state.last_request {
+                            if last_request.elapsed().as_secs() < 15 {
+                                state.update(endpoint).await;
+                            }
+                        // Otherwise update the status slowly
+                        } else if let Some(last_update) = state.last_update {
+                            if last_update.elapsed().as_secs() > 45 {
+                                state.update(endpoint).await;
+                            }
+                        // If the status has never been updated, update it
+                        } else {
+                            state.update(endpoint).await;
+                        }
+                        drop(state);
 
-    async fn run(&mut self) -> tokio::time::Duration {
-        // If some user on the webpage has requested the status in the last 15 seconds, update the status often
-        if let Some(last_request) = self.last_request {
-            if last_request.elapsed().as_secs() < 15 {
-                self.update().await;
-            }
-        // Otherwise update the status slowly
-        } else if let Some(last_update) = self.last_update {
-            if last_update.elapsed().as_secs() > 45 {
-                self.update().await;
-            }
-        // If the status has never been updated, update it
-        } else {
-            self.update().await;
-        }
-
-        tokio::time::Duration::from_secs(5)
+                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                    }
+                }
+                .boxed()
+            })
+            .render(|state| {
+                section_raw(
+                    htmx!("every 5s", state.endpoint()),
+                    &SectionConfig {
+                        id: Some("Discord"),
+                        ..Default::default()
+                    },
+                )
+            })
     }
 }

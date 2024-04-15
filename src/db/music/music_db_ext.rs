@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use futures::executor;
 use axum::async_trait;
 
+use tracing::{instrument, info, debug, trace, warn};
+
 use super::super::{ConnectedDB, db};
 use super::types::*;
 use super::audio_processing;
@@ -24,6 +26,7 @@ impl MusicDBExt for ConnectedDB {
     /// inserted into the db and returned. 
     /// in the second case, the bpm analysis will be started, but run in the background. this means
     /// that there is no guarantee that beat events for the returned track are available.
+    #[instrument(skip_all, fields(track = %track.name))]
     async fn upsert_track(&self, track: UnprocessedTrack) -> Result<Track> {
         let start = std::time::Instant::now();
 
@@ -31,34 +34,43 @@ impl MusicDBExt for ConnectedDB {
         let found_track = lookup_track_in_db(&self, &track).await;
 
         if let Some(track) = found_track {
-            println!("Track already in db");
+            trace!("track found in db, took {:?}", start.elapsed());
             return Ok(track);
         }
 
         // track not found in db, try to find more metadata 
+        debug!("track not found in db, looking up metadata");
         let track = MusicLookupPipeline::new().lookup_track(track).await;
 
         
         // insert newly found metadata into db
+        trace!("inserting track into db");
         let track = insert_track_into_db(&self, track).await?;
  
+        info!("track inserted into db, took {:?}", start.elapsed());
+
         // start analyzing the track in the background
         if let Some(file) = &track.file {
             let id = track.id;
             let file = file.clone();
-            rayon::spawn(move || analyze_and_store_file(file, id));
+            tokio::task::spawn_blocking(move || analyze_and_store_file(file, id));
+        } else {
+            warn!("no file found for track, skipping bpm analysis"); 
         }
         
 
-        println!("Track inserted into db, took {:?}", start.elapsed());
-        Ok(dbg!(track))
+        //trace!(?track);
+        Ok(track)
     }
 }
 
 /// analyzes the given file.
 /// when done, store [BeatData] in the db
 /// this is a very cpu intensive task and should be run on a seperate thread
+#[instrument(name="analysis_worker", skip_all)]
 fn analyze_and_store_file(path: PathBuf, track_id: i64) {
+    info!("starting bpm analysis");
+
     if let Ok(processed) = audio_processing::bpm::analyze_file(path) {
         let mut serialized = Vec::new();
         let mut serializer = Serializer::new(&mut serialized);

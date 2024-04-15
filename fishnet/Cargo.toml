@@ -1,0 +1,18 @@
+[package]
+name = "fishnet"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+axum = "0.7"
+esbuild-rs = "0.13"
+futures = "0.3"
+maud = { version = "0.26", features = ["axum"] }
+nanoid = "0.4.0"
+tokio = { version = "1", features = ["full"] }
+tower-service = "0.3.2"
+tracing = "0.1.40"
+tower-http = { version = "0.5", features = ["fs", "compression-gzip", "compression-br", "compression-deflate", "compression-zstd"] }
+const-random = "0.1.18"

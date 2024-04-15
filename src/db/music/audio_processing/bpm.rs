@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use tracing::{debug, info, instrument, trace};
 
 use symphonia::core::{
     audio::SampleBuffer,
@@ -65,6 +66,7 @@ pub struct AnalyzedBPM {
     pub beat_data: Vec<BeatEvent>,
 }
 
+#[instrument(skip_all)]
 pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<AnalyzedBPM> {
     let file = std::fs::File::open(path)?;
     let stream = MediaSourceStream::new(Box::new(file), Default::default());
@@ -198,7 +200,7 @@ pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<AnalyzedBPM> {
                                 cluster.add(bpm);
                                 if current_cluster != existing_cluster_pos.unwrap() {
                                     current_cluster = existing_cluster_pos.unwrap();
-                                    //println!("Switching to BPM Cluster: {}", bpm);
+                                    trace!("switching to bpm cluster: {}", bpm);
 
                                     bpm_events.push((time_ms, current_cluster));
                                 }
@@ -207,13 +209,11 @@ pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<AnalyzedBPM> {
                                 cluster.add(bpm);
                                 bpm_clusters.push(cluster);
                                 current_cluster = bpm_clusters.len() - 1;
-                                /*
-                                println!(
-                                    "New BPM Cluster: {}, confidence: {}",
+                                trace!(
+                                    "new bpm cluster: {}, confidence: {}",
                                     bpm,
                                     tempo.get_confidence()
                                 );
-                                */
 
                                 bpm_events.push((time_ms, bpm_clusters.len() - 1));
                             };
@@ -247,8 +247,8 @@ pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<AnalyzedBPM> {
         .expect("Failed to flush");
     unsafe { mp3_out_buf.set_len(mp3_out_buf.len().wrapping_add(encoded_size)) }
 
-    println!(
-        "\nEncoding took: {:?}. Found {} Events",
+    info!(
+        "processing finished! took {:?}. found {} events",
         start.elapsed(),
         bpm_events.len()
     );
@@ -275,6 +275,7 @@ pub fn analyze_file<P: AsRef<Path>>(path: P) -> Result<AnalyzedBPM> {
         BeatEventType::BPM(bpm) => *bpm < 200.0 && bpm * 2.0 < 300.0,
     });
     if all_slow {
+        debug!("doubling bpm values");
         beat_data.iter_mut().for_each(|b| match &mut b.event_type {
             BeatEventType::BPM(bpm) => *bpm *= 2.0,
         });

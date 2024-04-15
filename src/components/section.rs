@@ -1,14 +1,8 @@
 use maud::{html, Markup};
 
-pub struct HTMXConfig<'a> {
-    pub get: &'a str,
-    pub trigger: &'a str,
-}
-
 #[derive(Default)]
 pub struct SectionConfig<'a> {
     pub id: Option<&'a str>,
-    pub htmx: Option<HTMXConfig<'a>>,
     pub is_vertical: bool,
     pub hidden_on_mobile: bool,
     pub at_end: bool,
@@ -19,9 +13,6 @@ pub fn section(header: &str, inner: Markup, config: &SectionConfig) -> Markup {
 }
 
 pub fn section_raw(inner: Markup, config: &SectionConfig) -> Markup {
-    let htmx_config = config.htmx.as_ref();
-    let hx_get = htmx_config.and_then(|c| Some(c.get));
-    let hx_trigger = htmx_config.and_then(|c| Some(c.trigger));
     let id = config.id.and_then(|id| Some(id.to_string()));
 
     let mut classes = vec!["container", "background", "inv-shadow", "border"];
@@ -41,7 +32,7 @@ pub fn section_raw(inner: Markup, config: &SectionConfig) -> Markup {
     let classes_str = classes.join(" ");
 
     html! {
-        div class=(classes_str) id=[id] hx-get=[hx_get] hx-trigger=[hx_trigger] {
+        div class=(classes_str) id=[id] {
             (inner)
         }
     }

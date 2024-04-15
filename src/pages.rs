@@ -2,20 +2,9 @@ use maud::{html, Markup};
 
 use crate::components::sections::*;
 use crate::components::*;
-use crate::dyn_component::DynamicComponent;
-use crate::website::Website;
+use fishnet::{c, page::Page};
 
-macro_rules! use_dyn {
-    ($dyn:ident) => {
-        match $dyn {
-            Ok($dyn) => $dyn.lock().await.render(),
-            Err(e) => {
-                eprintln!("Error rendering dynamic component: {}", e);
-                html! {}
-            }
-        }
-    };
-}
+use tracing::{info, instrument};
 
 fn column_spacer() -> Markup {
     html! {
@@ -23,34 +12,43 @@ fn column_spacer() -> Markup {
     }
 }
 
-pub async fn root_page(website: &mut Website) -> Markup {
-    let live_activity = website.add_dynamic_component("live_activity", LiveActivityComponent::new);
-    //let microblogging = website.add_dynamic_component("microblogging", MicrobloggingComponent::new);
-    let music = website.add_dynamic_component("music", MusicComponent::new);
+#[instrument]
+pub fn root_page() -> Page {
+    info!("preparing page content");
 
-    let zerox20 = website.add_dynamic_component("0x20", Zerox20ButtonComponent::new);
-
-    html! {
-        (big_waifu("assets/Yuuko.png"))
-        div id="Content" {
-            div class="column" {
-                (use_dyn!(live_activity))
-                (navigation(vec![
-                    ("about me", "AboutMe"),
-                    ("music", "Music"),
-                    ("microblogging", "Microblogging"),
-                    ("hardware", "Hardware"),
-                    ("uptime", "Uptime"),
-                ]).render(website))
-                (column_spacer())
-                (site_controls(use_dyn!(zerox20)))
+    Page::new("root").with_content(|| {
+        html! {
+            head {
+                meta charset="utf-8";
+                meta name="viewport" content="width=device-width, initial-scale=1";
+                title { "sakanaa :)" }
+                link rel="stylesheet" href="css/style.css";
             }
-            div class="column" {
-                (about_me())
-                (use_dyn!(music))
-                //(use_dyn!(microblogging))
-                (hardware())
+
+            body style="background-image: url('assets/dither/bgdither.png')" class="ditherbg onex" {
+                (c!(colorfilter()))
+                (big_waifu("assets/Yuuko.png"))
+                div id="Content" {
+                    div class="column" {
+                        (c!(LiveActivityComponent::new()))
+                        (c!(navigation(vec![
+                            ("about me", "AboutMe"),
+                            ("music", "Music"),
+                            ("microblogging", "Microblogging"),
+                            ("hardware", "Hardware"),
+                            ("uptime", "Uptime"),
+                        ])))
+                        (column_spacer())
+                        (site_controls(c!(Zerox20ButtonComponentState::new())))
+                    }
+                    div class="column" {
+                        (about_me())
+                        //(c(MusicComponent::new()))
+                        //(c(MicrobloggingComponent::new()))
+                        (hardware())
+                    }
+                }
             }
         }
-    }
+    })
 }

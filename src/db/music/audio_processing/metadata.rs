@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use image::DynamicImage;
 use std::path::Path;
 use symphonia::core::{
-    formats::{FormatOptions, FormatReader},
+    formats::FormatOptions,
     io::MediaSourceStream,
     meta::*,
     probe::{Hint, ProbeResult},

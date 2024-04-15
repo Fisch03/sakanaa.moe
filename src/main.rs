@@ -1,34 +1,26 @@
 use sakanaa_web::config::config;
 use sakanaa_web::root_page;
-use sakanaa_web::website::{AttachWebsite, Website, WebsiteRouter};
 
-use tower_http::compression::CompressionLayer;
-use tower_http::services::ServeDir;
+use tracing_subscriber::{filter::LevelFilter, layer::SubscriberExt, prelude::*, EnvFilter};
+
+use fishnet::website::Website;
 
 #[tokio::main]
 async fn main() {
-    let serve_dir = ServeDir::new("static").append_index_html_on_directories(true);
+    let filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env()
+        .expect("failed to create filter");
+    let fmt_subscriber = tracing_subscriber::fmt::layer()
+        .with_thread_ids(true)
+        .with_target(false)
+        .with_filter(filter);
+    let registry = tracing_subscriber::registry().with(fmt_subscriber);
+    tracing::subscriber::set_global_default(registry).expect("failed to set subscriber");
 
-    let mut root = Website::new("sakanaa :)", "/api");
-    let content = root_page(&mut root).await;
-    root.set_content(content);
-
-    let compression = CompressionLayer::new()
-        .gzip(true)
-        .zstd(true)
-        .br(true)
-        .deflate(true);
-
-    let router = WebsiteRouter::new()
-        .attach_website(root)
-        .fallback_service(serve_dir)
-        .layer(compression);
+    let mut website = Website::new().compression(true).serve_dir("static");
+    website.add_page("/", root_page());
 
     let port = config().server.port;
-
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", port))
-        .await
-        .unwrap();
-
-    axum::serve(listener, router).await.unwrap();
+    website.serve(port).await;
 }

@@ -10,6 +10,8 @@ mod musicbrainz_sources;
 use fs_library_source::{FsLibrarySource, MusicLibConfig};
 use musicbrainz_sources::{MusicBrainzLookupSource, MusicBrainzSearchSource};
 
+use tracing::{debug, info_span, instrument, trace, Instrument};
+
 use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct LookupPipelineConfig {
@@ -41,6 +43,7 @@ pub struct MusicLookupPipeline {
 }
 #[derive(Clone, Debug)]
 struct MusicLookupStep {
+    name: String,
     priority: usize,
     replacing: bool,
     processor: Arc<dyn MusicDataSource>,
@@ -55,21 +58,27 @@ struct RunningStep {
 impl RunningStep {
     fn run(step: Arc<MusicLookupStep>, track: UnprocessedTrack) -> tokio::task::JoinHandle<Self> {
         tokio::task::spawn_blocking(move || {
-            Handle::current().block_on(async {
-                let processed_track = step
-                    .processor
-                    .lookup_track(track.clone(), step.replacing)
-                    .await;
+            let span = info_span!("lookup_step", name = %step.name);
+            Handle::current().block_on(
+                async {
+                    let start = std::time::Instant::now();
+                    let processed_track = step
+                        .processor
+                        .lookup_track(track.clone(), step.replacing)
+                        .await;
+                    trace!("step took {:?}", start.elapsed());
 
-                if processed_track.is_err() {
-                    println!("lookup failed: {:?}", processed_track);
-                }
+                    if processed_track.is_err() {
+                        debug!("lookup failed: {:?}", processed_track);
+                    }
 
-                RunningStep {
-                    track: processed_track.unwrap_or(track),
-                    next: step.next.clone(),
+                    RunningStep {
+                        track: processed_track.unwrap_or(track),
+                        next: step.next.clone(),
+                    }
                 }
-            })
+                .instrument(span),
+            )
         })
     }
 }
@@ -114,12 +123,14 @@ impl MusicLookupPipeline {
         {
             // file first path (left side of the diagram)
             let mb_lookup_step = Arc::new(MusicLookupStep {
+                name: "file -> mbid lookup".into(),
                 priority: 0,
                 processor: mb_lookup.clone(),
                 replacing: false,
                 next: None,
             });
             let mb_search_step = Arc::new(MusicLookupStep {
+                name: "file -> mb search".into(),
                 priority: 1,
                 processor: mb_search.clone(),
                 replacing: false,
@@ -127,6 +138,7 @@ impl MusicLookupPipeline {
             });
 
             let file_step = Arc::new(MusicLookupStep {
+                name: "input -> file".into(),
                 priority: 0,
                 processor: fs_library.clone(),
                 replacing: true,
@@ -139,6 +151,7 @@ impl MusicLookupPipeline {
         {
             // mbid lookup first path (middle path of the diagram)
             let file_step = Arc::new(MusicLookupStep {
+                name: "mbid lookup -> file".into(),
                 priority: 2,
                 processor: fs_library.clone(),
                 replacing: true,
@@ -146,6 +159,7 @@ impl MusicLookupPipeline {
             });
 
             let mb_lookup_step = Arc::new(MusicLookupStep {
+                name: "input -> mbid lookup".into(),
                 priority: 2,
                 processor: mb_lookup.clone(),
                 replacing: false,
@@ -158,6 +172,7 @@ impl MusicLookupPipeline {
         {
             // mbid search first path (right side of the diagram)
             let file_step = Arc::new(MusicLookupStep {
+                name: "mb search -> file".into(),
                 priority: 3,
                 processor: fs_library.clone(),
                 replacing: true,
@@ -165,6 +180,7 @@ impl MusicLookupPipeline {
             });
 
             let mb_search_step = Arc::new(MusicLookupStep {
+                name: "input -> mb search".into(),
                 priority: 3,
                 processor: mb_search.clone(),
                 replacing: false,
@@ -177,6 +193,7 @@ impl MusicLookupPipeline {
         Self { steps }
     }
 
+    #[instrument(skip_all)]
     pub async fn lookup_track(&self, track: UnprocessedTrack) -> UnprocessedTrack {
         let found_track = {
             let mut track_tasks = Vec::new();
@@ -205,7 +222,7 @@ impl MusicLookupPipeline {
                         .into_iter()
                         .filter(|(task, prio)| {
                             if *prio >= priority {
-                                println!("aborting task with prio {}", prio);
+                                debug!("aborting task with prio {}", prio);
                                 task.abort();
                                 return false;
                             }

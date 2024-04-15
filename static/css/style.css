@@ -446,8 +446,8 @@ button {
   transform: translate(0, -7px);
 }
 
-#Discord>.sectioncontent,
-#Discord>.sectioncontent>a {
+#Discord .sectioncontent,
+#Discord .sectioncontent>a {
   display: flex;
   gap: 1rem;
   justify-content: flex-start;

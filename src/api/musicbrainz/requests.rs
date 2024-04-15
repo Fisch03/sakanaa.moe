@@ -7,6 +7,8 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
+use tracing::debug;
+
 fn request_throttle() -> Duration {
     pub static LAST_REQUEST: Mutex<Option<Instant>> = Mutex::new(None);
     pub static BURST_ALLOWED: Mutex<bool> = Mutex::new(true);
@@ -27,7 +29,7 @@ fn request_throttle() -> Duration {
             *burst_allowed = false;
         } else if elapsed < Duration::from_secs(1) {
             duration = Duration::from_secs(1) - elapsed;
-            println!("Throttling request for {:?}", duration);
+            debug!("Throttling request for {:?}", duration);
         } else {
             if elapsed > Duration::from_secs(3) {
                 *burst_allowed = true;
