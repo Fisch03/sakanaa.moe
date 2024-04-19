@@ -70,10 +70,13 @@ impl APIRouter {
 
     async fn get(
         Extension(router): Extension<APIRouter>,
-        Path(component_route): Path<String>,
+        Path(mut component_route): Path<String>,
         mut req: Request,
     ) -> impl IntoResponse {
         let mut inner = router.0.lock().await;
+        if let Some((c, _)) = component_route.split_once('/') {
+            component_route = c.to_string();
+        }
         let full_route = format!("{}/{}", inner.base_route, component_route);
 
         if let Some(router) = inner.routes.get_mut(&component_route) {

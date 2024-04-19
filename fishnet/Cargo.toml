@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = "0.7"
-esbuild-rs = "0.13"
+esbuild-rs = { version = "0.13", optional = true }
 futures = "0.3"
 maud = { version = "0.26", features = ["axum"] }
 nanoid = "0.4.0"
@@ -16,3 +16,9 @@ tower-service = "0.3.2"
 tracing = "0.1.40"
 tower-http = { version = "0.5", features = ["fs", "compression-gzip", "compression-br", "compression-deflate", "compression-zstd"] }
 const-random = "0.1.18"
+fishnet_macros = { path = "../fishnet_macros" }
+async-trait = "0.1.80"
+
+[features]
+default = []
+minify-js = ["dep:esbuild-rs"]

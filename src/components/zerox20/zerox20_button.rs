@@ -51,7 +51,7 @@ impl Zerox20ButtonComponentState {
 
         let serve_file = ServeFile::new("test_audio/output.mp3");
 
-        Component::new("zerox20_button")
+        component!(ZeroX20Button)
             .with_state(state)
             .add_script(ScriptType::External("js/howler.min.js".into()))
             .add_script(ScriptType::External("js/0x20.js".into()))

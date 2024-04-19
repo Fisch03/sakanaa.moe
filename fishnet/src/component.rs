@@ -1,27 +1,51 @@
-pub mod htmx;
+//pub mod htmx;
 pub mod prelude;
-pub mod render_context;
 
-use crate::page::ScriptType;
+mod build;
+pub use build::{BuildableComponent, BuiltComponent, ComponentBuildResult, ComponentGlobals};
+use std::any::TypeId;
+
+mod render;
+use render::ContentRenderer;
+
+use crate::css::StyleFragment;
+use crate::js::ScriptType;
 use crate::routes::ComponentRoute;
 
 use axum::{
     body::Body, http::Request, response::IntoResponse, routing::method_routing::MethodRouter,
-    Extension, Router,
+    Router,
 };
 use core::convert::Infallible;
 use futures::future::BoxFuture;
-use futures::future::FutureExt;
-use maud::{html, Markup};
+use maud::Markup;
 use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 use tower_service::Service;
-use tracing::{instrument, trace};
 
 use nanoid::nanoid;
 const ID_ALPHABET: [char; 26] = [
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's',
     't', 'u', 'v', 'w', 'x', 'y', 'z',
 ];
+
+#[macro_export]
+macro_rules! component {
+    ($name:ident) => {{
+        pub struct $name;
+        impl $name {
+            pub fn new() -> $crate::component::Component<
+                $crate::component::NoRenderer,
+                $crate::component::NoState,
+                (),
+            > {
+                $crate::component::Component::new(stringify!($name), std::any::TypeId::of::<Self>())
+            }
+        }
+
+        $name::new()
+    }};
+}
+pub use component;
 
 #[derive(Debug, Clone)]
 pub struct ComponentState<ST>
@@ -49,63 +73,8 @@ where
     }
 }
 
-pub struct ComponentBuildResult {
-    pub built_component: BuiltComponent,
-    pub scripts: Vec<ScriptType>,
-    pub runner: Option<BoxFuture<'static, ()>>,
-    pub router: Option<(ComponentRoute, Router)>,
-}
-
-pub trait BuildableComponent {
-    fn name(&self) -> &str;
-    fn id(&self) -> &str;
-
-    fn build(self: Self, base_route: &str) -> ComponentBuildResult;
-}
-
-pub type ContentRenderer<ST> = Box<dyn Fn(ComponentState<ST>) -> Markup + Send + Sync>;
 pub type ComponentRunner<ST> =
     Box<dyn FnOnce(ComponentState<ST>) -> BoxFuture<'static, ()> + 'static>;
-
-struct StatefulContentRenderer<ST>
-where
-    ST: Clone + Send + Sync,
-{
-    renderer: ContentRenderer<ST>,
-    state: ComponentState<ST>,
-}
-pub trait StatefulRenderer: Send + Sync {
-    fn render(&self) -> Markup;
-}
-impl<ST> StatefulRenderer for StatefulContentRenderer<ST>
-where
-    ST: Clone + Send + Sync,
-{
-    fn render(&self) -> Markup {
-        (self.renderer)(self.state.clone())
-    }
-}
-
-pub enum ContentType {
-    Dynamic(Box<dyn StatefulRenderer>),
-    Static(Markup),
-}
-impl ContentType {
-    fn render(&self) -> Markup {
-        match self {
-            ContentType::Dynamic(renderer) => renderer.render(),
-            ContentType::Static(content) => content.clone(),
-        }
-    }
-}
-impl std::fmt::Debug for ContentType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ContentType::Dynamic(_) => write!(f, "Dynamic"),
-            ContentType::Static(_) => write!(f, "Static"),
-        }
-    }
-}
 
 #[doc(hidden)]
 pub struct NoRenderer;
@@ -121,6 +90,8 @@ pub struct Component<R, S, ST>
 where
     ST: Clone + Send + Sync,
 {
+    type_id: TypeId,
+
     name: String,
     id: String,
     is_dynamic: bool,
@@ -132,81 +103,20 @@ where
 
     runner: Option<ComponentRunner<ST>>,
     scripts: Vec<ScriptType>,
+    style: Option<StyleFragment>,
 
     _renderer_state: PhantomData<R>,
     _state_state: PhantomData<S>,
 }
 
-#[derive(Debug)]
-pub struct BuiltComponent {
-    name: String,
-    id: String,
-
-    content: ContentType,
-}
-impl BuiltComponent {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-}
-
-impl<ST, S> BuildableComponent for Component<HasRenderer, S, ST>
-where
-    ST: Clone + Send + Sync + 'static,
-{
-    fn name(&self) -> &str {
-        &self.name
-    }
-    fn id(&self) -> &str {
-        &self.id
-    }
-
-    #[instrument(name = "build_component", skip_all, fields(name = %self.name))]
-    fn build(self, base_route: &str) -> ComponentBuildResult {
-        let api_route = ComponentRoute::new(base_route, &self.name, &self.id);
-        let state = ComponentState {
-            api_route: api_route.clone(),
-            state: self.state,
-        };
-
-        trace!("building routes");
-        let router = self.router.map(|r| r.layer(Extension(state.clone())));
-
-        trace!("rendering component");
-        let renderer = self.renderer.unwrap();
-        let render = renderer(state.clone());
-
-        let runner = self.runner.map(|runner| {
-            let runner = (runner)(state.clone());
-            runner.boxed()
-        });
-
-        let content;
-        if !self.is_dynamic {
-            content = ContentType::Static(render);
-        } else {
-            content = ContentType::Dynamic(Box::new(StatefulContentRenderer { renderer, state }));
-        }
-
-        ComponentBuildResult {
-            built_component: BuiltComponent {
-                name: self.name,
-                id: self.id,
-                content,
-            },
-            scripts: self.scripts,
-            runner,
-            router: router.map(|r| (api_route, r)),
-        }
-    }
-}
-
 // ---- constructor ----
 impl Component<NoRenderer, NoState, ()> {
-    pub fn new(name: &str) -> Component<NoRenderer, NoState, ()> {
+    pub fn new(name: &str, type_id: TypeId) -> Component<NoRenderer, NoState, ()> {
         let id = nanoid!(5, &ID_ALPHABET);
 
         Self {
+            type_id,
+
             name: name.to_string(),
             id,
             is_dynamic: false,
@@ -216,7 +126,9 @@ impl Component<NoRenderer, NoState, ()> {
 
             renderer: None,
             runner: None,
+
             scripts: Vec::new(),
+            style: None,
 
             _renderer_state: PhantomData,
             _state_state: PhantomData,
@@ -235,6 +147,11 @@ where
 
     pub fn add_script(mut self, script: ScriptType) -> Self {
         self.scripts.push(script);
+        self
+    }
+
+    pub fn style(mut self, style: StyleFragment) -> Self {
+        self.style = Some(style);
         self
     }
 
@@ -267,6 +184,8 @@ where
         C: Fn(ComponentState<ST>) -> Markup + Send + Sync + 'static,
     {
         Component::<HasRenderer, S, ST> {
+            type_id: self.type_id,
+
             name: self.name,
             id: self.id,
 
@@ -277,7 +196,9 @@ where
 
             renderer: Some(Box::new(renderer)),
             runner: self.runner,
+
             scripts: self.scripts,
+            style: self.style,
 
             _renderer_state: PhantomData,
             _state_state: PhantomData,
@@ -290,6 +211,7 @@ where
         C: Fn(ComponentState<ST>) -> Markup + Send + Sync + 'static,
     {
         Component::<HasRenderer, S, ST> {
+            type_id: self.type_id,
             name: self.name,
             id: self.id,
             is_dynamic: true,
@@ -298,6 +220,7 @@ where
             renderer: Some(Box::new(renderer)),
             runner: self.runner,
             scripts: self.scripts,
+            style: self.style,
             _renderer_state: PhantomData,
             _state_state: PhantomData,
         }
@@ -334,6 +257,7 @@ impl<R> Component<R, NoState, ()> {
         ST: Clone + Send + Sync + 'static,
     {
         Component::<NoRenderer, HasState, ST> {
+            type_id: self.type_id,
             name: self.name,
             id: self.id,
 
@@ -344,7 +268,9 @@ impl<R> Component<R, NoState, ()> {
 
             renderer: None, // this is fine because there is no renderer on the component yet
             runner: None,   // runners can also only be added after with_state
+
             scripts: self.scripts,
+            style: self.style,
 
             _renderer_state: PhantomData,
             _state_state: PhantomData,

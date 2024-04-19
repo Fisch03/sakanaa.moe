@@ -16,7 +16,7 @@ fn column_spacer() -> Markup {
 pub fn root_page() -> Page {
     info!("preparing page content");
 
-    Page::new("root").with_content(|| {
+    Page::new("root").with_body(|| {
         html! {
             head {
                 meta charset="utf-8";
@@ -27,7 +27,7 @@ pub fn root_page() -> Page {
 
             body style="background-image: url('assets/dither/bgdither.png')" class="ditherbg onex" {
                 (c!(colorfilter()))
-                (big_waifu("assets/Yuuko.png"))
+                (c!(big_waifu("assets/Yuuko.png")))
                 div id="Content" {
                     div class="column" {
                         (c!(LiveActivityComponent::new()))

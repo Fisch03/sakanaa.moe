@@ -1,21 +1,38 @@
 use std::path::Path;
-use std::sync::Arc;
 
-use tracing::{debug, info, instrument};
-
-use esbuild_rs::{transform, Format, TransformOptionsBuilder};
+use tracing::{debug, instrument};
 
 /// A JavaScript source file
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum ScriptType {
     /// An inline script
-    Inline(String),
+    Inline(&'static str),
     /// An external script file. When this is used, the [`Website`](crate::website::Website) should be configured to serve static files.
     External(String),
 }
 
+#[cfg(not(feature = "minify-js"))]
 #[instrument(skip_all, level = "debug")]
-pub async fn bundle_script(script: &ScriptType) -> String {
+pub async fn minify_script(script: &ScriptType) -> String {
+    debug!("minify-js feature is not enabled, loading script as-is");
+    match script {
+        ScriptType::Inline(script) => script.to_string(),
+        ScriptType::External(path) => {
+            let path = Path::new("static/").join(path);
+
+            std::fs::read_to_string(&path).unwrap()
+        }
+    }
+}
+
+#[cfg(feature = "minify-js")]
+use esbuild_rs::{transform, Format, TransformOptionsBuilder};
+#[cfg(feature = "minify-js")]
+use std::sync::Arc;
+
+#[cfg(feature = "minify-js")]
+#[instrument(skip_all, level = "debug")]
+pub async fn minify_script(script: &ScriptType) -> String {
     let start = std::time::Instant::now();
 
     let mut options = TransformOptionsBuilder::new();

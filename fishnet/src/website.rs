@@ -28,8 +28,10 @@ impl Website {
     /// Add a page to the website.
     ///
     /// This will first initiate a build of the page and afterwards attach the page to the Website at the given path.
-    pub fn add_page(&mut self, path: &str, page: Page) {
+    pub fn add_page(mut self, path: &str, page: Page) -> Self {
         self.router = self.router.clone().attach_page(path, page);
+
+        self
     }
 
     /// Enable or disable compression for the website.

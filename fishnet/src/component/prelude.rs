@@ -3,10 +3,12 @@
 pub use crate::c;
 
 // components itself
-pub use super::{BuildableComponent, Component, ComponentState};
+pub use super::{BuildableComponent, ComponentState};
+pub use crate::component::component;
 
-// html, js
-pub use crate::page::ScriptType;
+// html, js, css
+pub use crate::js::ScriptType;
+pub use fishnet_macros::css;
 pub use maud::{html, Markup, Render};
 
 // boxing runner futures

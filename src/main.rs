@@ -7,6 +7,12 @@ use fishnet::website::Website;
 
 #[tokio::main]
 async fn main() {
+    let _ = maud::html! {
+        h1 { "Hello, world!" }
+
+        p { "This is a test." }
+    };
+
     let filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
         .from_env()
@@ -18,8 +24,10 @@ async fn main() {
     let registry = tracing_subscriber::registry().with(fmt_subscriber);
     tracing::subscriber::set_global_default(registry).expect("failed to set subscriber");
 
-    let mut website = Website::new().compression(true).serve_dir("static");
-    website.add_page("/", root_page());
+    let website = Website::new()
+        .compression(true)
+        .serve_dir("static")
+        .add_page("/", root_page());
 
     let port = config().server.port;
     website.serve(port).await;

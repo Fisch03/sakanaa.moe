@@ -1,17 +1,18 @@
 //! A visitable page on the [`Website`](crate::website::Website).
 
-use axum::{routing::get, Extension, Router};
+use axum::{http::header, response::IntoResponse, routing::get, Extension, Router};
 use maud::{html, Markup, DOCTYPE};
+use std::any::TypeId;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{debug, info, instrument};
+use tracing::{debug, instrument};
 
-mod bundler;
-pub use bundler::ScriptType;
-
-use crate::component::render_context::{self, ComponentStore};
+use crate::js::{self, ScriptType};
 use crate::routes::APIRouter;
+
+pub mod render_context;
+use render_context::ComponentStore;
 
 use nanoid::nanoid;
 const ID_ALPHABET: [char; 26] = [
@@ -20,18 +21,25 @@ const ID_ALPHABET: [char; 26] = [
 ];
 
 pub struct BuiltPage {
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     id: String,
 
-    renderer: Box<dyn Fn() -> Markup + Send + Sync>,
+    head: Markup,
+    body_renderer: Box<dyn Fn() -> Markup + Send + Sync>,
+
+    pub used_components: HashSet<TypeId>,
     pub components: Arc<std::sync::Mutex<ComponentStore>>,
 
     pub api_path: String,
     api_router: APIRouter,
 
     script_path: String,
-    scripts: HashSet<ScriptType>,
     bundled_script: String,
+
+    style_path: String,
+    stylesheet: String,
 }
 
 impl BuiltPage {
@@ -39,43 +47,76 @@ impl BuiltPage {
     async fn new(page: Page, path: &str) -> Router {
         let base_path = path.trim_end_matches('/');
         let script_path = format!("{}/script.js", base_path);
+        let style_path = format!("{}/style.css", base_path);
+
         let api_path = format!("{}/api", base_path);
 
         let mut bundled_script = String::new();
         for script in &page.extra_scripts {
-            bundled_script.push_str(&bundler::bundle_script(script).await);
+            bundled_script.push_str(&js::minify_script(script).await);
         }
 
         let built_page = Self {
             name: page.name,
             id: page.id,
 
-            renderer: page.content_renderer,
+            head: page.head,
+            body_renderer: page.body_renderer,
+
+            used_components: HashSet::new(),
             components: Arc::new(std::sync::Mutex::new(ComponentStore::new())),
 
             api_path,
             api_router: APIRouter::new(&format!("{}/api", base_path)),
 
             script_path,
-            scripts: page.extra_scripts,
             bundled_script,
+
+            style_path,
+            stylesheet: String::new(),
         };
 
-        debug!("building router");
         let api_router = built_page.api_router.make_router().await;
+        let page_extension = Extension(Arc::new(Mutex::new(built_page)));
+
+        // pre-render the page to save request time. this is obviously not guaranteed to prerender all the components, but it should get most of them.
+        debug!("performing page pre-render");
+        let _ = Self::render(page_extension.clone()).await;
+
+        debug!("building router");
         Router::new()
             .route("/", get(BuiltPage::render))
             .route("/script.js", get(BuiltPage::script))
+            .route("/style.css", get(BuiltPage::style))
             .merge(api_router)
-            .layer(Extension(Arc::new(Mutex::new(built_page))))
+            .layer(page_extension)
     }
 
     async fn render(page: Extension<Arc<Mutex<Self>>>) -> Markup {
         let mut page = page.lock().await;
 
         render_context::enter_page(&mut page);
-        let render = (page.renderer)();
+        let render = (page.body_renderer)();
         let mut result = render_context::exit_page();
+
+        //dbg!(&page.components.lock().unwrap());
+
+        for type_id in result.new_components.drain() {
+            if page.used_components.contains(&type_id) {
+                continue;
+            }
+
+            if let Some(component_globals) = render_context::global_store().get(type_id) {
+                if let Some(style) = &component_globals.style {
+                    page.stylesheet.push_str(style);
+                }
+
+                for script in &component_globals.scripts {
+                    page.bundled_script
+                        .push_str(&js::minify_script(script).await);
+                }
+            }
+        }
 
         for runner in result.runners {
             tokio::spawn(runner);
@@ -85,27 +126,37 @@ impl BuiltPage {
             page.api_router.add_component(route, router).await;
         }
 
-        for script in result.scripts {
-            if !page.scripts.contains(&script) {
-                page.bundled_script
-                    .push_str(&bundler::bundle_script(&script).await);
-                page.scripts.insert(script);
-            }
-        }
-
         html! {
             (DOCTYPE)
             html lang="en" {
+                head {
+                    (page.head)
+                    link rel="stylesheet" href=(page.style_path) {}
+                }
                 (render)
                 script src=(page.script_path) {}
             }
         }
     }
 
-    async fn script(page: Extension<Arc<Mutex<Self>>>) -> String {
+    // Endpoint for serving the bundled script.
+    async fn script(page: Extension<Arc<Mutex<Self>>>) -> impl IntoResponse {
         let page = page.lock().await;
 
-        page.bundled_script.clone()
+        (
+            [(header::CONTENT_TYPE, "application/javascript")],
+            page.bundled_script.clone(),
+        )
+    }
+
+    // Endpoint for serving the stylesheet.
+    async fn style(page: Extension<Arc<Mutex<Self>>>) -> impl IntoResponse {
+        let page = page.lock().await;
+
+        (
+            [(header::CONTENT_TYPE, "text/css")],
+            page.stylesheet.clone(),
+        )
     }
 }
 
@@ -116,7 +167,8 @@ pub struct Page {
     name: String,
     id: String,
 
-    content_renderer: Box<dyn Fn() -> Markup + Send + Sync>,
+    head: Markup,
+    body_renderer: Box<dyn Fn() -> Markup + Send + Sync>,
 
     extra_scripts: HashSet<ScriptType>,
 }
@@ -127,26 +179,32 @@ impl Page {
     /// The name is only used for logging purposes.
     pub fn new(name: &str) -> Self {
         let mut extra_scripts = HashSet::new();
-        extra_scripts.insert(ScriptType::External("js/htmx.min.js".into()));
+        extra_scripts.insert(ScriptType::Inline(include_str!("../htmx/dist/htmx.js")));
 
         Self {
             name: name.into(),
             id: nanoid!(5, &ID_ALPHABET),
 
-            content_renderer: Box::new(|| html! {}),
+            head: html! {},
+            body_renderer: Box::new(|| html! {}),
 
             extra_scripts,
         }
     }
 
+    pub fn with_head(mut self, head: Markup) -> Self {
+        self.head = head;
+        self
+    }
+
     /// Add content to the page.
     ///
     /// This function takes in a closure that returns a rendered page.
-    pub fn with_content<C>(mut self, content_renderer: C) -> Self
+    pub fn with_body<C>(mut self, content_renderer: C) -> Self
     where
         C: Fn() -> Markup + Send + Sync + 'static,
     {
-        self.content_renderer = Box::new(content_renderer);
+        self.body_renderer = Box::new(content_renderer);
         self
     }
 }

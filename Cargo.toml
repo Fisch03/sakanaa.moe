@@ -1,14 +1,14 @@
-workspace = { members = ["fishnet"] }
+workspace = { members = ["fishnet", "fishnet_macros"] }
 [package]
 name = "sakanaa_web"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fishnet = { path = "fishnet" }
+fishnet = { path = "fishnet" , features = ["minify-js"]}
 anyhow = "1"
 aubio-rs = "0.2"
-axum = "0.7"
+axum = { version = "0.7", features = ["macros"] }
 chrono = { version = "0.4", features = ["serde"] }
 config = { version = "0.14", features = ["yaml"] }
 dlhn = "0.1"

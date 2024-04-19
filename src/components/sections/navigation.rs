@@ -7,7 +7,7 @@ pub fn navigation(entries: Vec<(&str, &str)>) -> impl BuildableComponent {
         .map(|(name, target_id)| (name.to_string(), target_id.to_string()))
         .collect::<Vec<_>>();
 
-    Component::new("navigation")
+    component!(Navigation)
         .add_script(ScriptType::External("js/tabs.js".into()))
         .render(move |_| {
             section(

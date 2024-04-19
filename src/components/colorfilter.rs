@@ -17,7 +17,7 @@ use fishnet::component::prelude::*;
 */
 
 pub fn colorfilter() -> impl BuildableComponent {
-    Component::new("colorfilter")
+    component!(ColorFilter)
         .add_script(ScriptType::External("js/colors.js".into()))
         .render(|_| {
             html! {

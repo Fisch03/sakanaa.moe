@@ -175,32 +175,6 @@ button {
   animation: bounceA 1s infinite;
 }
 
-/* Waifu Image */
-#BigWaifu {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-
-  display: flex;
-  justify-content: left;
-  align-items: center;
-
-  z-index: 100;
-
-  pointer-events: none;
-}
-
-#BigWaifu>img {
-  position: fixed;
-  right: calc(10vw - 15vh); 
-  height: 100%;
-  image-rendering: auto;
-
-  pointer-events: none;
-}
-
 /* Main Content*/
 #Content {
   position: absolute;

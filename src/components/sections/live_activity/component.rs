@@ -5,7 +5,6 @@ use crate::config::config;
 use crate::db::music::audio_processing::metadata::CoverArt;
 use crate::response_helpers::BinaryResource;
 use fishnet::component::prelude::*;
-use fishnet::htmx;
 
 use axum::{
     http::{HeaderMap, StatusCode},
@@ -115,7 +114,7 @@ impl LiveActivityComponent {
             last_update: None,
         }));
 
-        Component::new("live_activity")
+        component!(LiveActivity)
             .with_state(state.clone())
             .route("/", get(Self::status_handler))
             .route("/cover_art", get(Self::cover_art_handler))
@@ -148,7 +147,12 @@ impl LiveActivityComponent {
             })
             .render(|state| {
                 section_raw(
-                    htmx!("every 5s", state.endpoint()),
+                    //TODO: make this render dynamically. for that, the render function needs to be
+                    //a future
+                    html! {
+                        div hx-get=(state.endpoint()) hx-trigger="load, every 5s" {}
+                    },
+                    //htmx!("every 5s", state.endpoint()),
                     &SectionConfig {
                         id: Some("Discord"),
                         ..Default::default()
