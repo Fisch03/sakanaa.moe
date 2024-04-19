@@ -13,8 +13,8 @@
 }
 
 :root {
-  --fg-color: #fff;
-  --bg-color: #000;
+  --fg-color: #000;
+  --bg-color: #fff;
 
   --cursor: url('../assets/cursor.png');
   --cursor-hover: url('../assets/cursorhover.png');

@@ -1,11 +1,10 @@
-workspace = { members = ["fishnet", "fishnet_macros"] }
 [package]
 name = "sakanaa_web"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fishnet = { path = "fishnet" , features = ["minify-js"]}
+fishnet = { git = "https://github.com/Fisch03/fishnet.git" , features = ["minify-js"] } 
 anyhow = "1"
 aubio-rs = "0.2"
 axum = { version = "0.7", features = ["macros"] }

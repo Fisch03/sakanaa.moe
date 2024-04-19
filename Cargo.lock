@@ -707,12 +707,13 @@ dependencies = [
 [[package]]
 name = "fishnet"
 version = "0.1.0"
+source = "git+https://github.com/Fisch03/fishnet.git#1fce32a15145bfea0fe2fc625334e7e3e85430ff"
 dependencies = [
  "async-trait",
  "axum",
  "const-random",
  "esbuild-rs",
- "fishnet_macros",
+ "fishnet-macros",
  "futures",
  "maud",
  "nanoid",
@@ -723,8 +724,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "fishnet_macros"
+name = "fishnet-macros"
 version = "0.1.0"
+source = "git+https://github.com/Fisch03/fishnet.git#1fce32a15145bfea0fe2fc625334e7e3e85430ff"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
@@ -1949,9 +1951,9 @@ dependencies = [
 
 [[package]]
 name = "rayon"
-version = "1.9.0"
+version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4963ed1bc86e4f3ee217022bd855b297cef07fb9eac5dfa1f788b220b49b3bd"
+checksum = "b418a60154510ca1a002a752ca9714984e21e4241e804d32555251faf8b78ffa"
 dependencies = [
  "either",
  "rayon-core",

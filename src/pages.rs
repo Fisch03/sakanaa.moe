@@ -3,7 +3,7 @@ use maud::{html, Markup};
 
 use crate::components::sections::*;
 use crate::components::*;
-use fishnet::{c, page::Page};
+use fishnet::{c, Page};
 
 use tracing::{info, instrument};
 
