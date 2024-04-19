@@ -1,3 +1,4 @@
+use futures::future::FutureExt;
 use maud::{html, Markup};
 
 use crate::components::sections::*;
@@ -17,6 +18,7 @@ pub fn root_page() -> Page {
     info!("preparing page content");
 
     Page::new("root").with_body(|| {
+        async {
         html! {
             head {
                 meta charset="utf-8";
@@ -50,5 +52,6 @@ pub fn root_page() -> Page {
                 }
             }
         }
+    }.boxed()
     })
 }

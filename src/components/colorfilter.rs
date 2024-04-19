@@ -19,7 +19,7 @@ use fishnet::component::prelude::*;
 pub fn colorfilter() -> impl BuildableComponent {
     component!(ColorFilter)
         .add_script(ScriptType::External("js/colors.js".into()))
-        .render(|_| {
+        .render(|_| async {
             html! {
                 svg xmlns="http://www.w3.org/2000/svg" {
                     defs {
@@ -39,5 +39,5 @@ pub fn colorfilter() -> impl BuildableComponent {
                     }
                 }
             }
-        })
+        }.boxed())
 }

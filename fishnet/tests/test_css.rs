@@ -33,10 +33,10 @@ fn test_css() {
         }
     };
 
-    println!("{}", &fragment.render(".component"));
+    println!("{}", &fragment.render("component"));
 
     assert_eq!(
-        fragment.render(".component"),
+        fragment.render("component"),
         r".component {
     color: #f00000;
     display: inline-block;
@@ -52,7 +52,7 @@ fn test_css() {
     margin: 0;
 }
 
-.component >div {
+.component > div {
     color: #000;
 }
 

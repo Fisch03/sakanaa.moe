@@ -1,7 +1,10 @@
 use super::ComponentState;
+use async_trait::async_trait;
+use futures::future::BoxFuture;
 use maud::Markup;
 
-pub type ContentRenderer<ST> = Box<dyn Fn(ComponentState<ST>) -> Markup + Send + Sync>;
+pub type ContentRenderer<ST> =
+    Box<dyn Fn(ComponentState<ST>) -> BoxFuture<'static, Markup> + Send + Sync>;
 
 pub type ComponentStyle = String;
 
@@ -21,15 +24,18 @@ where
     }
 }
 
+#[async_trait]
 pub trait StatefulRenderer: Send + Sync {
-    fn render(&self) -> Markup;
+    async fn render(&self) -> Markup;
 }
+
+#[async_trait]
 impl<ST> StatefulRenderer for StatefulContentRenderer<ST>
 where
     ST: Clone + Send + Sync,
 {
-    fn render(&self) -> Markup {
-        (self.renderer)(self.state.clone())
+    async fn render(&self) -> Markup {
+        (self.renderer)(self.state.clone()).await
     }
 }
 
@@ -38,9 +44,9 @@ pub enum ContentType {
     Static(Markup),
 }
 impl ContentType {
-    pub fn render(&self) -> Markup {
+    pub async fn render(&self) -> Markup {
         match self {
-            ContentType::Dynamic(renderer) => renderer.render(),
+            ContentType::Dynamic(renderer) => renderer.render().await,
             ContentType::Static(content) => content.clone(),
         }
     }

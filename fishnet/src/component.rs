@@ -74,7 +74,7 @@ where
 }
 
 pub type ComponentRunner<ST> =
-    Box<dyn FnOnce(ComponentState<ST>) -> BoxFuture<'static, ()> + 'static>;
+    Box<dyn FnOnce(ComponentState<ST>) -> BoxFuture<'static, ()> + Send + Sync + 'static>;
 
 #[doc(hidden)]
 pub struct NoRenderer;
@@ -177,11 +177,12 @@ where
 impl<S, ST> Component<NoRenderer, S, ST>
 where
     ST: Clone + Send + Sync,
+    S: Send + Sync + 'static,
 {
     pub fn render<C>(self, renderer: C) -> impl BuildableComponent
     where
         ST: Clone + Send + Sync + 'static,
-        C: Fn(ComponentState<ST>) -> Markup + Send + Sync + 'static,
+        C: Fn(ComponentState<ST>) -> BoxFuture<'static, Markup> + Send + Sync + 'static,
     {
         Component::<HasRenderer, S, ST> {
             type_id: self.type_id,
@@ -208,7 +209,7 @@ where
     pub fn render_dynamic<C>(self, renderer: C) -> impl BuildableComponent
     where
         ST: Clone + Send + Sync + 'static,
-        C: Fn(ComponentState<ST>) -> Markup + Send + Sync + 'static,
+        C: Fn(ComponentState<ST>) -> BoxFuture<'static, Markup> + Send + Sync + 'static,
     {
         Component::<HasRenderer, S, ST> {
             type_id: self.type_id,
@@ -240,7 +241,7 @@ where
 {
     pub fn with_runner<F>(mut self, runner: F) -> Self
     where
-        F: FnOnce(ComponentState<ST>) -> BoxFuture<'static, ()> + 'static,
+        F: FnOnce(ComponentState<ST>) -> BoxFuture<'static, ()> + Send + Sync + 'static,
     {
         self.runner = Some(Box::new(runner));
         self

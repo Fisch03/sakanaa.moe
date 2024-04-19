@@ -13,7 +13,16 @@ struct Parser {
 impl Iterator for Parser {
     type Item = TokenTree;
     fn next(&mut self) -> Option<Self::Item> {
-        self.input.next()
+        let next = self.input.next();
+        match next {
+            Some(TokenTree::Punct(ref punct)) if punct.as_char() == '&' => {
+                abort!(
+                    punct.span(),
+                    "using the nesting selector '&' is currently not supported."
+                );
+            }
+            _ => next,
+        }
     }
 }
 
@@ -53,17 +62,25 @@ impl Parser {
         };
 
         let result: Option<ast::StyleFragment> = match token {
+            //
             TokenTree::Ident(ref ident) => self.parse_declaration_or_qualified(ident.to_string()),
             TokenTree::Literal(ref literal) => self
                 .parse_declaration(literal.to_string())
                 .map(ast::StyleFragment::TopLevelDeclaration),
             TokenTree::Punct(ref punct) => match punct.as_char() {
+                // at-rule
                 '@' => self.parse_at_rule().map(ast::StyleFragment::AtRule),
-                '*' | '.' | '#' | '>' | '[' | ']' => self
+                // combined selectors (with spacing)
+                '*' | '>' => self
+                    .parse_qualified_rule(format!("{} ", punct))
+                    .map(ast::StyleFragment::QualifiedRule),
+                // part of a selector (no spacing)
+                '.' | '#' => self
                     .parse_qualified_rule(punct.to_string())
                     .map(ast::StyleFragment::QualifiedRule),
                 _ => None,
             },
+            // TODO: attribute selectors [attr="value"]
             _ => None,
         };
 
@@ -188,7 +205,7 @@ impl Parser {
             self.advance();
         }
 
-        Some(ast::Selector(selector))
+        Some(ast::Selector(selector.trim().to_string()))
     }
 
     fn parse_at_rule(&mut self) -> Option<ast::AtRule> {

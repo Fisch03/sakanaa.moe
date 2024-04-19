@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use axum::{Extension, Router};
 use futures::future::{BoxFuture, FutureExt};
 use maud::{html, Markup};
@@ -49,9 +50,9 @@ impl BuiltComponent {
         self.type_id
     }
 
-    pub fn render(&self) -> Markup {
+    pub async fn render(&self) -> Markup {
         html! {
-            div class=(self.name) { (self.content.render()) }
+            div class=(self.name) { (self.content.render().await) }
         }
     }
 
@@ -63,16 +64,19 @@ impl BuiltComponent {
     }
 }
 
+#[async_trait]
 pub trait BuildableComponent {
     fn name(&self) -> &str;
     fn id(&self) -> &str;
 
-    fn build(self: Self, base_route: &str) -> ComponentBuildResult;
+    async fn build(self: Self, base_route: &str) -> ComponentBuildResult;
 }
 
+#[async_trait]
 impl<ST, S> BuildableComponent for Component<HasRenderer, S, ST>
 where
     ST: Clone + Send + Sync + 'static,
+    S: Send + Sync + 'static,
 {
     fn name(&self) -> &str {
         &self.name
@@ -82,7 +86,7 @@ where
     }
 
     #[instrument(name = "build_component", skip_all, fields(name = %self.name))]
-    fn build(self, base_route: &str) -> ComponentBuildResult {
+    async fn build(self, base_route: &str) -> ComponentBuildResult {
         trace!("building state");
         let api_route = ComponentRoute::new(base_route, &self.name, &self.id);
         let state = ComponentState {
@@ -103,9 +107,9 @@ where
 
         if !self.is_dynamic {
             trace!("pre-rendering static component");
-            render_context::enter_temporary_render();
-            let render = renderer(state.clone());
-            if !render_context::exit_temporary_render() {
+            render_context::enter_temporary_render().await;
+            let render = renderer(state.clone()).await;
+            if !render_context::exit_temporary_render().await {
                 debug!("detected dynamic child, making self dynamic");
                 content = ContentType::Dynamic(StatefulContentRenderer::new(renderer, state));
             } else {
@@ -118,10 +122,12 @@ where
         trace!("rendering component style");
         let style = self.style.map(|style| style.render(&self.name));
 
-        render_context::global_store().add(self.type_id, || ComponentGlobals {
-            scripts: self.scripts,
-            style,
-        });
+        render_context::global_store()
+            .add(self.type_id, || ComponentGlobals {
+                scripts: self.scripts,
+                style,
+            })
+            .await;
 
         debug!("built component");
         ComponentBuildResult {
@@ -142,11 +148,17 @@ mod tests {
     use crate::component::prelude::*;
     use crate::component::render::ContentType;
 
-    #[test]
-    fn test_build_minimal() {
+    #[tokio::test]
+    async fn test_build_minimal() {
         let result = component!(TestComponent)
-            .render(|_| html! { "test" })
-            .build("/");
+            .render(|_| {
+                async {
+                    html! { "test" }
+                }
+                .boxed()
+            })
+            .build("/")
+            .await;
 
         assert_eq!(result.built_component.name(), "TestComponent");
         assert!(matches!(
@@ -158,11 +170,17 @@ mod tests {
         assert!(result.router.is_none());
     }
 
-    #[test]
-    fn test_build_minimal_dynamic() {
+    #[tokio::test]
+    async fn test_build_minimal_dynamic() {
         let result = component!(TestComponent)
-            .render_dynamic(|_| html! { "test" })
-            .build("/");
+            .render_dynamic(|_| {
+                async {
+                    html! { "test" }
+                }
+                .boxed()
+            })
+            .build("/")
+            .await;
 
         assert_eq!(result.built_component.name(), "TestComponent");
         assert!(matches!(
@@ -174,15 +192,21 @@ mod tests {
         assert!(result.router.is_none());
     }
 
-    #[test]
-    fn test_build() {
+    #[tokio::test]
+    async fn test_build() {
         use axum::routing::get;
 
         let result = component!(TestComponent)
             .add_script(ScriptType::External("test.js".to_string()))
             .route("/route", get(|| async { "test" }))
-            .render(|_| html! { "test" })
-            .build("/");
+            .render(|_| {
+                async {
+                    html! { "test" }
+                }
+                .boxed()
+            })
+            .build("/")
+            .await;
 
         assert_eq!(result.built_component.name(), "TestComponent");
         assert!(matches!(

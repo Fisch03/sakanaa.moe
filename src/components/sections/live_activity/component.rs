@@ -145,19 +145,21 @@ impl LiveActivityComponent {
                 }
                 .boxed()
             })
-            .render(|state| {
-                section_raw(
-                    //TODO: make this render dynamically. for that, the render function needs to be
-                    //a future
-                    html! {
-                        div hx-get=(state.endpoint()) hx-trigger="load, every 5s" {}
-                    },
-                    //htmx!("every 5s", state.endpoint()),
-                    &SectionConfig {
-                        id: Some("Discord"),
-                        ..Default::default()
-                    },
-                )
+            .render_dynamic(|state| {
+                async move {
+                    section_raw(
+                        html! {
+                            div hx-get=(state.endpoint()) hx-trigger="every 5s" {
+                                (state.lock().await.render.clone())
+                            }
+                        },
+                        &SectionConfig {
+                            id: Some("Discord"),
+                            ..Default::default()
+                        },
+                    )
+                }
+                .boxed()
             })
     }
 }

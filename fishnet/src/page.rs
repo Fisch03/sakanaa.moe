@@ -1,6 +1,7 @@
 //! A visitable page on the [`Website`](crate::website::Website).
 
 use axum::{http::header, response::IntoResponse, routing::get, Extension, Router};
+use futures::future::{BoxFuture, FutureExt};
 use maud::{html, Markup, DOCTYPE};
 use std::any::TypeId;
 use std::collections::HashSet;
@@ -27,10 +28,10 @@ pub struct BuiltPage {
     id: String,
 
     head: Markup,
-    body_renderer: Box<dyn Fn() -> Markup + Send + Sync>,
+    body_renderer: Box<dyn Fn() -> BoxFuture<'static, Markup> + Send + Sync>,
 
     pub used_components: HashSet<TypeId>,
-    pub components: Arc<std::sync::Mutex<ComponentStore>>,
+    pub components: Arc<Mutex<ComponentStore>>,
 
     pub api_path: String,
     api_router: APIRouter,
@@ -64,7 +65,7 @@ impl BuiltPage {
             body_renderer: page.body_renderer,
 
             used_components: HashSet::new(),
-            components: Arc::new(std::sync::Mutex::new(ComponentStore::new())),
+            components: Arc::new(Mutex::new(ComponentStore::new())),
 
             api_path,
             api_router: APIRouter::new(&format!("{}/api", base_path)),
@@ -93,11 +94,13 @@ impl BuiltPage {
     }
 
     async fn render(page: Extension<Arc<Mutex<Self>>>) -> Markup {
+        let start = std::time::Instant::now();
+
         let mut page = page.lock().await;
 
-        render_context::enter_page(&mut page);
-        let render = (page.body_renderer)();
-        let mut result = render_context::exit_page();
+        render_context::enter_page(&mut page).await;
+        let render = (page.body_renderer)().await;
+        let mut result = render_context::exit_page().await;
 
         //dbg!(&page.components.lock().unwrap());
 
@@ -106,7 +109,7 @@ impl BuiltPage {
                 continue;
             }
 
-            if let Some(component_globals) = render_context::global_store().get(type_id) {
+            if let Some(component_globals) = render_context::global_store().get(type_id).await {
                 if let Some(style) = &component_globals.style {
                     page.stylesheet.push_str(style);
                 }
@@ -125,6 +128,8 @@ impl BuiltPage {
         for (route, router) in result.routers.drain(..) {
             page.api_router.add_component(route, router).await;
         }
+
+        debug!("page render took {:?}", start.elapsed());
 
         html! {
             (DOCTYPE)
@@ -168,7 +173,7 @@ pub struct Page {
     id: String,
 
     head: Markup,
-    body_renderer: Box<dyn Fn() -> Markup + Send + Sync>,
+    body_renderer: Box<dyn Fn() -> BoxFuture<'static, Markup> + Send + Sync>,
 
     extra_scripts: HashSet<ScriptType>,
 }
@@ -186,7 +191,12 @@ impl Page {
             id: nanoid!(5, &ID_ALPHABET),
 
             head: html! {},
-            body_renderer: Box::new(|| html! {}),
+            body_renderer: Box::new(|| {
+                async {
+                    html! {}
+                }
+                .boxed()
+            }),
 
             extra_scripts,
         }
@@ -202,7 +212,7 @@ impl Page {
     /// This function takes in a closure that returns a rendered page.
     pub fn with_body<C>(mut self, content_renderer: C) -> Self
     where
-        C: Fn() -> Markup + Send + Sync + 'static,
+        C: Fn() -> BoxFuture<'static, Markup> + Send + Sync + 'static,
     {
         self.body_renderer = Box::new(content_renderer);
         self

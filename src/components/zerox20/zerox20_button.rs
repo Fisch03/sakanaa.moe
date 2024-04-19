@@ -57,12 +57,12 @@ impl Zerox20ButtonComponentState {
             .add_script(ScriptType::External("js/0x20.js".into()))
             .route("/", get(Self::stream_provider))
             .nest_service("/music", serve_file)
-            .render(|_| {
+            .render(|_| async {
                 html! {
                     div class="zerox20_button" {
                         button id="0x20Btn"  class="music_reactive" { (filtered_image("assets/music.png")) }
                     }
                 }
-            })
+            }.boxed())
     }
 }

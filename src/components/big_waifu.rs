@@ -1,9 +1,8 @@
 use fishnet::component::prelude::*;
 
 pub fn big_waifu(src: &str) -> impl BuildableComponent {
-    let src = src.to_string();
-
     component!(BigWaifu)
+        .with_state(Arc::new(src.to_string()))
         .style(css! {
             position: fixed;
             top: 0;
@@ -28,9 +27,12 @@ pub fn big_waifu(src: &str) -> impl BuildableComponent {
               pointer-events: none;
             }
         })
-        .render(move |_| {
-            html! {
-                img src=(src) class="shadow paletteimg music_reactive" {}
+        .render(|src| {
+            async move {
+                html! {
+                    img src=(src.as_ref()) class="shadow paletteimg music_reactive" {}
+                }
             }
+            .boxed()
         })
 }

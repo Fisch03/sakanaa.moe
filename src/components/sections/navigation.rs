@@ -8,23 +8,27 @@ pub fn navigation(entries: Vec<(&str, &str)>) -> impl BuildableComponent {
         .collect::<Vec<_>>();
 
     component!(Navigation)
+        .with_state(Arc::new(entries))
         .add_script(ScriptType::External("js/tabs.js".into()))
-        .render(move |_| {
-            section(
-                "navigation",
-                html! {
-                    div class="tabs vertical" {
-                        @for (name, target_id) in &entries {
-                            button data-target=(target_id) { (name) }
+        .render(|entries| {
+            async move {
+                section(
+                    "navigation",
+                    html! {
+                        div class="tabs vertical" {
+                            @for (name, target_id) in entries.as_ref() {
+                                button data-target=(target_id) { (name) }
+                            }
                         }
-                    }
-                },
-                &SectionConfig {
-                    id: Some("Navigation"),
-                    is_vertical: true,
-                    hidden_on_mobile: true,
-                    ..Default::default()
-                },
-            )
+                    },
+                    &SectionConfig {
+                        id: Some("Navigation"),
+                        is_vertical: true,
+                        hidden_on_mobile: true,
+                        ..Default::default()
+                    },
+                )
+            }
+            .boxed()
         })
 }

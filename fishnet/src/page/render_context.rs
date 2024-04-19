@@ -3,15 +3,19 @@ use futures::future::BoxFuture;
 use maud::{html, Markup};
 use std::any::TypeId;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::sync::OnceLock;
-use std::sync::{Arc, Mutex};
+use tokio::sync::Mutex;
 use tracing::{error, instrument, trace, warn};
 
 use crate::component::{BuildableComponent, BuiltComponent, ComponentGlobals};
 use crate::page::BuiltPage;
 use crate::routes::ComponentRoute;
 
-static RENDER_CONTEXT: Mutex<Option<RenderContext>> = Mutex::new(None);
+fn render_context() -> &'static Mutex<Option<RenderContext>> {
+    static RENDER_CONTEXT: OnceLock<Mutex<Option<RenderContext>>> = OnceLock::new();
+    RENDER_CONTEXT.get_or_init(|| Mutex::new(None))
+}
 
 pub fn global_store() -> &'static GlobalStore {
     static GLOBAL_STORE: OnceLock<GlobalStore> = OnceLock::new();
@@ -40,18 +44,18 @@ impl GlobalStore {
         Self(Mutex::new(HashMap::new()))
     }
 
-    pub fn add<F>(&self, component_type: TypeId, globals: F)
+    pub async fn add<F>(&self, component_type: TypeId, globals: F)
     where
         F: FnOnce() -> ComponentGlobals,
     {
-        let mut store = self.0.lock().unwrap();
+        let mut store = self.0.lock().await;
         if !store.contains_key(&component_type) {
             store.insert(component_type, Arc::new(globals()));
         }
     }
 
-    pub fn get<'a>(&'a self, component_type: TypeId) -> Option<Arc<ComponentGlobals>> {
-        self.0.lock().unwrap().get(&component_type).cloned()
+    pub async fn get<'a>(&'a self, component_type: TypeId) -> Option<Arc<ComponentGlobals>> {
+        self.0.lock().await.get(&component_type).cloned()
     }
 }
 
@@ -113,8 +117,8 @@ pub struct RenderResult {
 /// Calling `enter_page` while another page is being rendered results in the loss of the previous page's render results!
 ///
 /// You usually don't need to call this function yourself.
-pub(crate) fn enter_page(page: &mut BuiltPage) {
-    let mut context = RENDER_CONTEXT.lock().unwrap();
+pub(crate) async fn enter_page(page: &mut BuiltPage) {
+    let mut context = render_context().lock().await;
 
     if context.is_some() {
         warn!("tried to render a page while another page is already being rendered");
@@ -129,8 +133,8 @@ pub(crate) fn enter_page(page: &mut BuiltPage) {
 ///
 /// # Panics
 /// Panics if no page is currently being rendered. (i.e. `enter_page` was not called before)
-pub(crate) fn exit_page() -> RenderResult {
-    let mut context = RENDER_CONTEXT.lock().unwrap();
+pub(crate) async fn exit_page() -> RenderResult {
+    let mut context = render_context().lock().await;
 
     context
         .take()
@@ -145,12 +149,12 @@ pub(crate) fn exit_page() -> RenderResult {
 /// * `context_id` - A unique identifier for the render. This should be kept consistent for the same component across renders.
 /// * `lazy_component` - A closure that returns the component to render. It will only be called if the component is not already rendered for the current page.
 #[instrument(name = "c", level = "debug", skip_all)]
-pub fn render_component<F, C>(context_id: u64, lazy_component: F) -> Markup
+pub async fn render_component<F, C>(context_id: u64, lazy_component: F) -> Markup
 where
     F: FnOnce() -> C,
     C: BuildableComponent,
 {
-    let mut context_guard = RENDER_CONTEXT.lock().unwrap();
+    let mut context_guard = render_context().lock().await;
     if context_guard.is_none() {
         error!(
             context_id,
@@ -160,7 +164,7 @@ where
         return html! { "rendering failed for context " (context_id) ": no page is being rendered" };
     }
     let mut context = context_guard.as_mut().unwrap();
-    let mut components_guard = context.components.lock().unwrap();
+    let mut components_guard = context.components.lock().await;
 
     context.current_path.push(context_id);
 
@@ -173,9 +177,9 @@ where
         drop(context_guard);
 
         // IMPORTANT: Since may lead to recursive calls, all the locks need to be dropped before calling
-        render = component.render();
+        render = component.render().await;
 
-        context_guard = RENDER_CONTEXT.lock().unwrap();
+        context_guard = render_context().lock().await;
         if context_guard.is_none() {
             error!(
                 context_id,
@@ -195,11 +199,11 @@ where
 
         // IMPORTANT: Since may lead to recursive calls, all the locks need to be dropped before calling
         trace!("building component");
-        let new_component = lazy_component().build(&base_route);
+        let new_component = lazy_component().build(&base_route).await;
         trace!("rendering component");
-        render = new_component.built_component.render();
+        render = new_component.built_component.render().await;
 
-        context_guard = RENDER_CONTEXT.lock().unwrap();
+        context_guard = render_context().lock().await;
         if context_guard.is_none() {
             error!(
                 context_id,
@@ -209,7 +213,7 @@ where
         }
 
         context = context_guard.as_mut().unwrap();
-        components_guard = context.components.lock().unwrap();
+        components_guard = context.components.lock().await;
 
         context.static_state &= !new_component.built_component.is_dynamic();
 
@@ -245,8 +249,8 @@ where
 /// Temporary render contexts can be exited using `exit_temporary_render`, and can be nested.
 ///
 /// You usually don't need to call this function yourself.
-pub fn enter_temporary_render() {
-    let mut context = RENDER_CONTEXT.lock().unwrap();
+pub async fn enter_temporary_render() {
+    let mut context = render_context().lock().await;
     if let Some(context) = context.as_mut() {
         trace!("entering temporary render");
         if context.temporary_render_depth == 0 {
@@ -262,8 +266,8 @@ pub fn enter_temporary_render() {
 /// If not within a (temporary) render context, this function will always return true.
 ///
 /// You usually don't need to call this function yourself.
-pub fn exit_temporary_render() -> bool {
-    let mut context = RENDER_CONTEXT.lock().unwrap();
+pub async fn exit_temporary_render() -> bool {
+    let mut context = render_context().lock().await;
     if let Some(context) = context.as_mut() {
         if context.temporary_render_depth == 0 {
             warn!("tried to exit temporary render while not in temporary render");
@@ -306,5 +310,6 @@ macro_rules! c {
             $crate::page::render_context::const_random!(u64),
             component,
         )
+        .await
     }};
 }
