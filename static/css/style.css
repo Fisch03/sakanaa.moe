@@ -26,9 +26,6 @@
 }
 
 body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
   font-family: pixel;
   letter-spacing: -1px;
   font-smooth: never;
@@ -176,126 +173,6 @@ button {
 }
 
 /* Main Content*/
-#Content {
-  position: absolute;
-
-  top: 0;
-  left: calc(min(6rem, 3vw) + 2.5rem + var(--sidecolumn-width));
-  right: calc(min(6rem, 3vw));
-
-  padding: calc(min(3rem, 5vh)) 0;
-
-  width: calc((85vw - 31vh) - var(--sidecolumn-width) - 2.5rem);
-
-  /*
-  display: flex;
-  justify-self: space-between;
-  gap: 2.5rem;
-  */
-}
-
-.column {
-  display: flex;
-  flex-direction: column;
-  flex-flow: space-between;
-  justify-content: flex-start;
-  align-items: flex-start;
-  left: 0;
-  gap: 2rem;
-  height: 100%;
-  /*width: fit-content*/
-  ;
-}
-
-.column:nth-child(1) {
-  position: fixed;
-  left: calc(min(6rem, 3vw));
-  width: var(--sidecolumn-width);
-  height: calc(100vh - 2*min(3rem, 5vh));
-}
-
-.column>div {
-  width: 100%;
-}
-
-/* prevent text from being under the waifu ;) */
-#MainColumn>div>.sectioncontent,
-#MainColumn>div>a>.sectioncontent {
-  padding-right: 1.5vw;
-}
-
-#MainColumn>div>.sectioncontent.hastabs,
-#MainColumn>div>a>.sectioncontent.hastabs {
-  padding-right: 0;
-}
-
-.container {
-  border-radius: 3rem;
-  overflow: hidden;
-}
-
-.horizontaldivider {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  gap: 2rem;
-}
-
-.container.vertical {
-  display: flex;
-  align-items: stretch;
-  min-height: 7rem;
-  width: 100%;
-}
-
-.container.atend {
-    margin-top: auto;
-}
-
-.sectionheader {
-  /*border-radius: 3rem 3rem 0 0;*/
-  border-bottom: 1px solid var(--fg-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-
-  text-align: center;
-
-  padding: .7rem;
-
-  max-height: 5rem;
-  min-height: 3rem;
-  height: 10vh;
-}
-
-.sectionheader:has(h2:nth-child(1)) {
-  justify-content: space-evenly;
-}
-
-.container.vertical>.sectionheader {
-  border-radius: 3rem 0 0 3rem;
-  border-right: 1px solid var(--fg-color);
-  min-height: 7rem;
-  width: 5rem;
-  padding: 0;
-  height: unset;
-  max-height: unset;
-}
-
-.container.vertical>.sectionheader>h2 {
-  transform: rotate(-90deg);
-  transform-origin: 50% 50%;
-}
-
-.sectionheader>h2,
-.sectionheader>h2>span {
-  border-radius: 0.5rem;
-  padding: .4rem;
-  height: fit-content;
-  margin: 0;
-}
-
 .columnsection>.container {
   border-radius: 0rem;
   border-bottom: 0;
@@ -310,18 +187,17 @@ button {
   border-bottom: 1px solid var(--fg-color);
 }
 
-.columnsection>.container>.sectionheader {
+.columnsection>.container>.section-header {
   height: 4vh;
   min-height: 2rem;
 }
 
-.columnsection>.container:first-child>.sectionheader {
+.columnsection>.container:first-child>.section-header {
   height: 10vh;
   min-height: 3rem;
 }
 
-.sectioncontent,
-.sectioncontent.hastabs>.tabinner {
+.section-content.hastabs>.tabinner {
   padding: .7rem 1.5rem;
 
   height: calc(100% - 9rem);
@@ -329,30 +205,10 @@ button {
   position: relative;
 }
 
-.sectioncontent.hastabs {
+.section-content.hastabs {
   padding: 0;
 }
 
-.sectioncontent>h2,
-.sectioncontent.hastabs>.tabinner>h2 {
-  margin: 0;
-}
-
-.container.vertical>.sectioncontent,
-.container.vertical>a,
-.container.vertical>.sectioncontent.hastabs>.tabinner {
-  float: left;
-  height: 100%;
-  width: 100%;
-  padding: 0;
-}
-
-.container.vertical>a>.sectioncontent,
-.container.vertical>a>.sectioncontent.hastabs>.tabinner {
-  width: 100%;
-  padding: 0;
-  height: 100%;
-}
 
 .tabs {
   display: flex;
@@ -420,8 +276,8 @@ button {
   transform: translate(0, -7px);
 }
 
-#Discord .sectioncontent,
-#Discord .sectioncontent>a {
+#Discord .section-content,
+#Discord .section-content>a {
   display: flex;
   gap: 1rem;
   justify-content: flex-start;
@@ -451,14 +307,14 @@ button {
   max-height: 150rem;
 }
 
-#RecentlyPlayed>.sectioncontent>#MusicListContent {
+#RecentlyPlayed>.section-content>#MusicListContent {
   height: 40vh;
   overflow-y: auto;
   border-radius: 0rem 0rem 3rem 3rem;
 }
 
-#RecentlyPlayed>.sectioncontent>#MusicListContent>div,
-#RecentlyPlayed>.sectioncontent>#MusicListContent>a>div {
+#RecentlyPlayed>.section-content>#MusicListContent>div,
+#RecentlyPlayed>.section-content>#MusicListContent>a>div {
   display: flex;
   justify-content: flex-start;
   align-items: center;
@@ -475,7 +331,7 @@ button {
   max-height: 150rem;
 }
 
-#Microblogging>.sectioncontent {
+#Microblogging>.section-content {
   height: 70vh;
   overflow-y: auto;
   border-radius: 0rem 0rem 3rem 3rem;
@@ -527,7 +383,7 @@ button {
 }
 
 /* Uptime */
-#Uptime>.sectioncontent {
+#Uptime>.section-content {
   min-height: 7rem;
   display: flex;
   flex-direction: column;
@@ -547,7 +403,7 @@ button {
   margin-top: auto;
 }
 
-#SiteControls>.sectioncontent {
+#SiteControls>.section-content {
   display: flex;
   justify-content: space-around;
   align-items: center;
@@ -555,13 +411,13 @@ button {
   padding: 0 1.5rem;
 }
 
-#SiteControls>.sectioncontent img {
+#SiteControls>.section-content img {
   width: 4rem;
   height: 4rem;
   transition: transform 0.2s;
 }
 
-#Socials>.sectioncontent {
+#Socials>.section-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -569,7 +425,7 @@ button {
   padding: 0 1.5rem;
 }
 
-#Socials>.sectioncontent>svg {
+#Socials>.section-content>svg {
   width: 4rem;
   height: 4rem;
   transition: transform 0.2s;
@@ -577,46 +433,7 @@ button {
 
 /* Mobile and smaller screens */
 @media screen and (max-width: 1550px) {
-  #BigWaifu>img {
-    transform: translate(60vw, 0);
-  }
-
-  .column:nth-child(1) {
-    position: unset;
-    left: unset;
-    height: unset;
-    width: 100%;
-    margin-bottom: 2rem;
-  }
-
-
-  #Content {
-    left: calc(min(6rem, 10vw));
-    width: calc(65vw - 2.5rem);
-  }
-
   .hideonmobile {
     display: none !important;
-  }
-}
-
-@media screen and (((orientation: portrait) and (max-width: 1550px)) or (max-width: 750px)) {
-  #Content {
-    flex-direction: column;
-    left: calc(min(6rem, 10vw));
-    right: calc(min(6rem, 10vw));
-    width: unset;
-  }
-
-  .column:nth-child(1) {
-    position: unset;
-    left: unset;
-    height: unset;
-    width: 100%;
-    margin-bottom: 2rem;
-  }
-
-  #BigWaifu {
-    display: none;
   }
 }

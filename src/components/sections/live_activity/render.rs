@@ -116,7 +116,7 @@ impl LiveActivity {
         }
     }
 
-    pub fn render(&self, custom_filter: &[CustomActivityFilter]) -> Markup {
+    pub async fn render(&self, custom_filter: &[CustomActivityFilter]) -> Markup {
         let header = if let Some(user) = &self.discord_user {
             html!(
                 div class="inv-border avatar-border" { (avatar_img(user)) }
@@ -126,6 +126,6 @@ impl LiveActivity {
             section_header("what i'm doing right now!")
         };
 
-        section_inner(header, self.render_relevant_activity(custom_filter))
+        section_inner(header, self.render_relevant_activity(custom_filter)).await
     }
 }

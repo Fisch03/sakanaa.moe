@@ -9,7 +9,7 @@ pub struct AboutMeConfig {
     birthday: String,
 }
 
-pub fn about_me() -> Markup {
+pub async fn about_me() -> Markup {
     //yes, this is completely overkill :P
     let now = Utc::now();
     let config_date = &config().page.about_me.birthday;
@@ -54,5 +54,5 @@ pub fn about_me() -> Markup {
             id: Some("AboutMe"),
             ..Default::default()
         },
-    )
+    ).await
 }

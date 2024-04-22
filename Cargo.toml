@@ -1,10 +1,11 @@
+
 [package]
 name = "sakanaa_web"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fishnet = { git = "https://github.com/Fisch03/fishnet.git" , features = ["minify-js"] } 
+fishnet = { path = "../fishnet/fishnet" , features = ["minify-js"]}
 anyhow = "1"
 aubio-rs = "0.2"
 axum = { version = "0.7", features = ["macros"] }
@@ -13,7 +14,6 @@ config = { version = "0.14", features = ["yaml"] }
 dlhn = "0.1"
 futures = "0.3"
 image = "0.25"
-maud = { version = "0.26", features = ["axum"] }
 mp3lame-encoder = "0.1"
 regex = "1"
 reqwest = { version = "0.12", features = ["json"] }
@@ -26,3 +26,4 @@ tokio-rusqlite = "0.5"
 tower-http = { version = "0.5", features = ["fs"]  }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+maud = "0.26.0"

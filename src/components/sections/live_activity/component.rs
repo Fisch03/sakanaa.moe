@@ -51,12 +51,10 @@ impl LiveActivityComponentState {
         LiveActivity::from_lanyard_response(response, &self.config.music_filters).ok()
     }
 
-    async fn update(&mut self, endpoint: &str) {
-        self.last_update = Some(std::time::Instant::now());
-
+    async fn update(state: ComponentState<Arc<Mutex<Self>>>) {
         let mut new_activity: LiveActivity;
 
-        if let Some(activity) = self.fetch_lanyard_live_activity().await {
+        if let Some(activity) = state.lock().await.fetch_lanyard_live_activity().await {
             new_activity = activity;
         } else {
             new_activity = LiveActivity {
@@ -68,15 +66,20 @@ impl LiveActivityComponentState {
         }
 
         if new_activity.music_activity.is_none() {
-            new_activity.music_activity = get_current_track().await.ok().flatten().map(|track| {
-                self.cover_art = track.cover.as_ref().map(|cover| {
+            let current_track = get_current_track().await.ok().flatten();
+
+            let mut state_guard = state.lock().await;
+            new_activity.music_activity = current_track.map(|track| {
+                state_guard.cover_art = track.cover.as_ref().map(|cover| {
                     BinaryResource::new(cover.to_jpg_thumb(), &track.name, "image/jpeg")
                 });
-                MusicActivity::from(track, &format!("{}/cover_art", endpoint))
+                MusicActivity::from(track, &format!("{}/cover_art", state.endpoint()))
             });
         }
 
-        self.render = new_activity.render(&self.config.custom_filters);
+        let mut state = state.lock().await;
+        state.render = new_activity.render(&state.config.custom_filters).await;
+        state.last_update = Some(std::time::Instant::now());
     }
 }
 
@@ -118,27 +121,30 @@ impl LiveActivityComponent {
             .with_state(state.clone())
             .route("/", get(Self::status_handler))
             .route("/cover_art", get(Self::cover_art_handler))
-            .with_runner(|component_state| {
+            .with_runner(|state| {
                 async move {
                     loop {
-                        let endpoint = component_state.endpoint();
-                        let mut state = component_state.lock().await;
+                        //TODO: VERY IMPORTANT. MAKE UPDATES NOT LOCK THE FUCKING STATE FOR SECONDS
+                        //ON END!
+                        let state_guard = state.lock().await;
+                        let last_request = state_guard.last_request;
+                        let last_update = state_guard.last_update;
+                        drop(state_guard);
 
                         // If some user on the webpage has requested the status in the last 15 seconds, update the status often
-                        if let Some(last_request) = state.last_request {
+                        if let Some(last_request) = last_request {
                             if last_request.elapsed().as_secs() < 15 {
-                                state.update(endpoint).await;
+                                LiveActivityComponentState::update(state.clone()).await;
                             }
                         // Otherwise update the status slowly
-                        } else if let Some(last_update) = state.last_update {
+                        } else if let Some(last_update) = last_update {
                             if last_update.elapsed().as_secs() > 45 {
-                                state.update(endpoint).await;
+                                LiveActivityComponentState::update(state.clone()).await;
                             }
                         // If the status has never been updated, update it
                         } else {
-                            state.update(endpoint).await;
+                            LiveActivityComponentState::update(state.clone()).await;
                         }
-                        drop(state);
 
                         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                     }
@@ -158,6 +164,7 @@ impl LiveActivityComponent {
                             ..Default::default()
                         },
                     )
+                    .await
                 }
                 .boxed()
             })

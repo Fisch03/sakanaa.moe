@@ -1,3 +1,4 @@
+use fishnet::{css, style};
 use maud::{html, Markup};
 
 #[derive(Default)]
@@ -8,14 +9,51 @@ pub struct SectionConfig<'a> {
     pub at_end: bool,
 }
 
-pub fn section(header: &str, inner: Markup, config: &SectionConfig) -> Markup {
-    section_raw(section_inner(section_header(header), inner), config)
+pub async fn section(header: &str, inner: Markup, config: &SectionConfig<'_>) -> Markup {
+    section_raw(section_inner(section_header(header), inner).await, config).await
 }
 
-pub fn section_raw(inner: Markup, config: &SectionConfig) -> Markup {
+pub async fn section_raw(inner: Markup, config: &SectionConfig<'_>) -> Markup {
+    style!(
+        "section",
+        css! {
+            border-radius: 3rem;
+            overflow: hidden;
+
+            &.vertical {
+                display: flex;
+                align-items: stretch;
+                min-height: 7rem;
+                width: 100%;
+            }
+
+            &.vertical > .section-header {
+                border-radius: 3rem 0 0 3rem;
+                border-right: 1px solid var(--fg-color);
+                min-height: 7rem;
+                width: 5rem;
+                padding: 0;
+                height: unset;
+                max-height: unset;
+            }
+
+            &.vertical > .section-header > h2 {
+                transform: rotate(-90deg);
+                transform-origin: 50% 50%;
+            }
+
+            &.vertical > .section-content {
+                float: left;
+                height: 100%;
+                width: 100%;
+                padding: 0;
+            }
+        }
+    );
+
     let id = config.id.and_then(|id| Some(id.to_string()));
 
-    let mut classes = vec!["container", "background", "inv-shadow", "border"];
+    let mut classes = vec!["section", "background", "inv-shadow", "border"];
 
     if config.is_vertical {
         classes.push("vertical");
@@ -38,12 +76,54 @@ pub fn section_raw(inner: Markup, config: &SectionConfig) -> Markup {
     }
 }
 
-pub fn section_inner(header: Markup, content: Markup) -> Markup {
+pub async fn section_inner(header: Markup, content: Markup) -> Markup {
+    style!(
+        "section-header",
+        css! {
+            /*border-radius: 3rem 3rem 0 0;*/
+            border-bottom: 1px solid var(--fg-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+
+            text-align: center;
+
+            padding: .7rem;
+
+            max-height: 5rem;
+            min-height: 3rem;
+            height: 10vh;
+
+            :has(h2:nth-child(1)) {
+                justify-content: space-evenly;
+            }
+
+            > h2 {
+                border-radius: 0.5rem;
+                padding: .4rem;
+                height: fit-content;
+                margin: 0;
+            }
+        }
+    );
+
+    style!(
+        "section-content",
+        css! {
+            padding: .7rem 1.5rem;
+
+            height: calc(100% - 9rem);
+            hyphens: auto;
+            position: relative;
+        }
+    );
+
     html! {
-        div class="sectionheader ditherbg twox" style="background-image: url('assets/dither/bgdither2x.png');"  {
+        div class="section-header ditherbg twox" style="background-image: url('assets/dither/bgdither2x.png');"  {
             (header)
         }
-        div class="sectioncontent" {
+        div class="section-content" {
             (content)
         }
     }
@@ -55,7 +135,7 @@ pub fn section_header(header: &str) -> Markup {
 
 pub fn split_section(sections: &[Markup]) -> Markup {
     html! {
-        div class="columnsection" {
+        div class="split-section" {
             @for section in sections {
                 (section)
             }

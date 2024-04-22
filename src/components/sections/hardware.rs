@@ -1,7 +1,7 @@
 use crate::components::*;
 use maud::{html, Markup};
 
-pub fn hardware() -> Markup {
+pub async fn hardware() -> Markup {
     section(
         "hardware",
         html! {
@@ -44,4 +44,5 @@ pub fn hardware() -> Markup {
             ..Default::default()
         },
     )
+    .await
 }

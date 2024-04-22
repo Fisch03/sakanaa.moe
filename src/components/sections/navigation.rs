@@ -28,6 +28,7 @@ pub fn navigation(entries: Vec<(&str, &str)>) -> impl BuildableComponent {
                         ..Default::default()
                     },
                 )
+                .await
             }
             .boxed()
         })

@@ -26,6 +26,16 @@ pub fn big_waifu(src: &str) -> impl BuildableComponent {
 
               pointer-events: none;
             }
+            
+            @media screen and (max-width: 1550px) {
+                > img {
+                    transform: translate(60vw, 0);
+                }
+            }
+
+            @media screen and (((orientation: portrait) and (max-width: 1550px)) or (max-width: 750px)) {
+                display: none;
+            }
         })
         .render(|src| {
             async move {

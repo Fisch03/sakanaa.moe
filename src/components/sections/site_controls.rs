@@ -2,7 +2,7 @@ use maud::{html, Markup};
 
 use crate::components::*;
 
-pub fn site_controls(zerox20render: Markup) -> Markup {
+pub async fn site_controls(zerox20render: Markup) -> Markup {
     section(
         "controls",
         html! {
@@ -17,4 +17,5 @@ pub fn site_controls(zerox20render: Markup) -> Markup {
             ..Default::default()
         },
     )
+    .await
 }

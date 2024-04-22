@@ -1,5 +1,5 @@
 use crate::components::*;
-use maud::{html, Markup};
+use fishnet::{html, Markup};
 
 pub fn music_upper() -> Markup {
     section(

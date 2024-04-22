@@ -707,16 +707,13 @@ dependencies = [
 [[package]]
 name = "fishnet"
 version = "0.1.0"
-source = "git+https://github.com/Fisch03/fishnet.git#1fce32a15145bfea0fe2fc625334e7e3e85430ff"
 dependencies = [
  "async-trait",
  "axum",
- "const-random",
  "esbuild-rs",
  "fishnet-macros",
  "futures",
  "maud",
- "nanoid",
  "tokio",
  "tower-http",
  "tower-service",
@@ -726,8 +723,8 @@ dependencies = [
 [[package]]
 name = "fishnet-macros"
 version = "0.1.0"
-source = "git+https://github.com/Fisch03/fishnet.git#1fce32a15145bfea0fe2fc625334e7e3e85430ff"
 dependencies = [
+ "nanoid",
  "proc-macro-error",
  "proc-macro2",
  "quote",

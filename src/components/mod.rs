@@ -14,6 +14,9 @@ pub use big_waifu::*;
 mod zerox20;
 pub use zerox20::*;
 
+pub mod layout;
+pub use layout::*;
+
 use sections::AboutMeConfig;
 use sections::LiveActivityConfig;
 use serde::Deserialize;
