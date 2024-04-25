@@ -30,6 +30,7 @@ pub async fn section_raw(inner: Markup, config: &SectionConfig<'_>) -> Markup {
             &.vertical > .section-header {
                 border-radius: 3rem 0 0 3rem;
                 border-right: 1px solid var(--fg-color);
+                border-bottom: unset;
                 min-height: 7rem;
                 width: 5rem;
                 padding: 0;
@@ -81,7 +82,6 @@ pub async fn section_inner(header: Markup, content: Markup) -> Markup {
         "section-header",
         css! {
             /*border-radius: 3rem 3rem 0 0;*/
-            border-bottom: 1px solid var(--fg-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -89,7 +89,7 @@ pub async fn section_inner(header: Markup, content: Markup) -> Markup {
 
             text-align: center;
 
-            padding: .7rem;
+            padding: .7rem 1rem;
 
             max-height: 5rem;
             min-height: 3rem;
@@ -104,6 +104,10 @@ pub async fn section_inner(header: Markup, content: Markup) -> Markup {
                 padding: .4rem;
                 height: fit-content;
                 margin: 0;
+            }
+
+            :has(+ .section-content) {
+                border-bottom: 1px solid var(--fg-color);
             }
         }
     );
@@ -123,8 +127,10 @@ pub async fn section_inner(header: Markup, content: Markup) -> Markup {
         div class="section-header ditherbg twox" style="background-image: url('assets/dither/bgdither2x.png');"  {
             (header)
         }
-        div class="section-content" {
-            (content)
+        @if !content.0.is_empty() {
+            div class="section-content" {
+                (content)
+            }
         }
     }
 }

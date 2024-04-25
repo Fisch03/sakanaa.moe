@@ -710,7 +710,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
- "axum-macros",
  "esbuild-rs",
  "fishnet-macros",
  "futures",

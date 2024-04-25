@@ -25,7 +25,7 @@ pub fn root_page() -> Page {
                         (c!(big_waifu("assets/Yuuko.png")))
                         (content(
                             html! {
-                                (c!(LiveActivityComponent::live_activity()))
+                                (c!(live_activity()))
                                 (c!(navigation(vec![
                                     ("about me", "AboutMe"),
                                     ("music", "Music"),

@@ -1,6 +1,5 @@
 mod live_activity;
-pub use live_activity::LiveActivityComponent;
-pub use live_activity::LiveActivityConfig;
+pub use live_activity::*;
 
 mod navigation;
 pub use navigation::navigation;

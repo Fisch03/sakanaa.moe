@@ -112,7 +112,7 @@ impl LiveActivity {
                 Self::render_activity(&activity)
             }
         } else {
-            Self::render_no_activity()
+            html! {}
         }
     }
 

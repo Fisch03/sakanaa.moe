@@ -1,5 +1,5 @@
 mod component;
 mod render;
 mod types;
-pub use component::LiveActivityComponent;
+pub use component::live_activity;
 pub use component::LiveActivityConfig;
