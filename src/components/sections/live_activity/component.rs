@@ -9,7 +9,6 @@ use fishnet::component::prelude::*;
 use axum::{
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::get,
 };
 use std::io::{BufWriter, Cursor};
 
@@ -95,78 +94,72 @@ impl LiveActivityComponent {
         api.render.clone()
     }
 
-    async fn cover_art_handler(
-        state: Extension<ComponentState<Arc<Mutex<LiveActivityComponentState>>>>,
-        req_headers: HeaderMap,
-    ) -> Response {
-        let state = state.lock().await;
-
-        if let Some(cover_art) = &state.cover_art {
-            cover_art.respond(&req_headers).await
-        } else {
-            StatusCode::NOT_FOUND.into_response()
-        }
-    }
-
-    pub fn new() -> impl BuildableComponent {
-        let state = Arc::new(Mutex::new(LiveActivityComponentState {
+    #[component]
+    pub fn live_activity() {
+        let state = state_init!(Arc::new(Mutex::new(LiveActivityComponentState {
             config: config().page.live_activity.clone(),
             render: html! {},
             cover_art: None,
             last_request: None,
             last_update: None,
-        }));
+        })));
 
-        component!(LiveActivity)
-            .with_state(state.clone())
-            .route("/", get(Self::status_handler))
-            .route("/cover_art", get(Self::cover_art_handler))
-            .with_runner(|state| {
-                async move {
-                    loop {
-                        //TODO: VERY IMPORTANT. MAKE UPDATES NOT LOCK THE FUCKING STATE FOR SECONDS
-                        //ON END!
-                        let state_guard = state.lock().await;
-                        let last_request = state_guard.last_request;
-                        let last_update = state_guard.last_update;
-                        drop(state_guard);
+        #[route("/", GET)]
+        async fn status_route(
+            state: Extension<ComponentState<Arc<Mutex<LiveActivityComponentState>>>>,
+        ) -> Markup {
+            LiveActivityComponent::status_handler(state).await
+        }
 
-                        // If some user on the webpage has requested the status in the last 15 seconds, update the status often
-                        if let Some(last_request) = last_request {
-                            if last_request.elapsed().as_secs() < 15 {
-                                LiveActivityComponentState::update(state.clone()).await;
-                            }
-                        // Otherwise update the status slowly
-                        } else if let Some(last_update) = last_update {
-                            if last_update.elapsed().as_secs() > 45 {
-                                LiveActivityComponentState::update(state.clone()).await;
-                            }
-                        // If the status has never been updated, update it
-                        } else {
-                            LiveActivityComponentState::update(state.clone()).await;
-                        }
+        #[route("/cover_art", GET)]
+        async fn cover_art_route(
+            state: Extension<ComponentState<Arc<Mutex<LiveActivityComponentState>>>>,
+            req_headers: HeaderMap,
+        ) -> Response {
+            let state = state.lock().await;
 
-                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                    }
+            if let Some(cover_art) = &state.cover_art {
+                cover_art.respond(&req_headers).await
+            } else {
+                StatusCode::NOT_FOUND.into_response()
+            }
+        }
+
+        runner!(loop {
+            let state_guard = state.lock().await;
+            let last_request = state_guard.last_request;
+            let last_update = state_guard.last_update;
+            drop(state_guard);
+
+            // If some user on the webpage has requested the status in the last 15 seconds, update the status often
+            if let Some(last_request) = last_request {
+                if last_request.elapsed().as_secs() < 15 {
+                    LiveActivityComponentState::update(state.clone()).await;
                 }
-                .boxed()
-            })
-            .render_dynamic(|state| {
-                async move {
-                    section_raw(
-                        html! {
-                            div hx-get=(state.endpoint()) hx-trigger="every 5s" {
-                                (state.lock().await.render.clone())
-                            }
-                        },
-                        &SectionConfig {
-                            id: Some("Discord"),
-                            ..Default::default()
-                        },
-                    )
-                    .await
+            // Otherwise update the status slowly
+            } else if let Some(last_update) = last_update {
+                if last_update.elapsed().as_secs() > 45 {
+                    LiveActivityComponentState::update(state.clone()).await;
                 }
-                .boxed()
-            })
+            // If the status has never been updated, update it
+            } else {
+                LiveActivityComponentState::update(state.clone()).await;
+            }
+
+            tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        });
+
+        section_raw(
+            html! {
+                div hx-get=(state.endpoint()) hx-trigger="every 5s" {
+                    (state.lock().await.render.clone())
+                }
+            },
+            &SectionConfig {
+                id: Some("Discord"),
+                ..Default::default()
+            },
+        )
+        .await
     }
 }

@@ -710,10 +710,12 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "axum",
+ "axum-macros",
  "esbuild-rs",
  "fishnet-macros",
  "futures",
  "maud",
+ "parking_lot",
  "tokio",
  "tower-http",
  "tower-service",
@@ -724,6 +726,7 @@ dependencies = [
 name = "fishnet-macros"
 version = "0.1.0"
 dependencies = [
+ "litrs",
  "nanoid",
  "proc-macro-error",
  "proc-macro2",
@@ -1284,6 +1287,15 @@ name = "linux-raw-sys"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01cda141df6706de531b6c46c3a33ecca755538219bd484262fa09410c13539c"
+
+[[package]]
+name = "litrs"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4ce301924b7887e9d637144fdade93f9dfff9b60981d4ac161db09720d39aa5"
+dependencies = [
+ "proc-macro2",
+]
 
 [[package]]
 name = "lock_api"

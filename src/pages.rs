@@ -25,7 +25,7 @@ pub fn root_page() -> Page {
                         (c!(big_waifu("assets/Yuuko.png")))
                         (content(
                             html! {
-                                (c!(LiveActivityComponent::new()))
+                                (c!(LiveActivityComponent::live_activity()))
                                 (c!(navigation(vec![
                                     ("about me", "AboutMe"),
                                     ("music", "Music"),
@@ -33,7 +33,7 @@ pub fn root_page() -> Page {
                                     ("hardware", "Hardware"),
                                     ("uptime", "Uptime"),
                                 ])))
-                                (site_controls(c!(Zerox20ButtonComponentState::new())).await)
+                                (site_controls(c!(zerox20_button())).await)
                             },
                             html! {
                                 (about_me().await)
