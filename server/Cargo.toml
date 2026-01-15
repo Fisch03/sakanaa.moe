@@ -1,0 +1,15 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.44", features = ["rt", "rt-multi-thread", "net"] }
+
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query"] }
+tower-http = { version = "0.6", features = ["fs", "compression-br", "compression-deflate", "compression-gzip", "compression-zstd"] }
+maud = { version = "0.27", features = ["axum"] }
+
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+common = { path = '../common/' }

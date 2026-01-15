@@ -1,0 +1,80 @@
+@use "sass:math";
+
+$pixel-scale: 2;
+$bg-size: #{4 * $pixel-scale}px;
+$bg-levels: "primary", "secondary", "tertiary";
+
+@mixin bg($level) {
+  background-image: var(--#{$level}-bg);
+  background-repeat: repeat;
+  background-size: $bg-size;
+  background-position: 1px 1px;
+}
+
+@mixin no-bg() {
+  background-color: var(--secondary-col);
+}
+
+@mixin container() {
+  @include no-bg();
+
+  border: 2px solid var(--primary-col);
+  box-shadow: 4px 4px 0 var(--primary-col);
+}
+
+@function snap($val) {
+  @return round($val, $bg-size);
+}
+@function pixels($val) {
+  @return $val * $pixel-scale;
+}
+
+@mixin desktop {
+  @media (orientation: landscape) {
+    @content;
+  }
+}
+@mixin mobile {
+  @media (orientation: portrait) {
+    @content;
+  }
+}
+
+
+// make sure the body fills the whole screen
+html, body {
+  @include bg(secondary);
+
+  margin: 0;
+  height: 100%;
+
+  image-rendering: pixelated;
+}
+
+body {
+  box-sizing: border-box;
+  padding: 4rem;
+}
+
+#main {
+  height: snap(100%);
+  width: snap(100%);
+
+  display: grid;
+  gap: 5rem;
+  $icon-size: pixels(64px);
+
+  @include desktop {
+    grid-template-columns: $icon-size snap(calc(60% - $icon-size)) 1fr;
+  }
+  @include mobile {
+    grid-template-rows: pixels(64px) 1fr;
+    & > :last-child {
+      display: none;
+    }
+  }
+
+  & > * {
+    @include container();
+  }
+}
