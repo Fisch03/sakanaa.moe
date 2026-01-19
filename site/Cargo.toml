@@ -1,0 +1,23 @@
+[package]
+name = "site"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+maud.workspace = true
+
+log.workspace = true
+
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+web-sys = { workspace = true, features = [] }
+
+common = { path = '../common/' }
+wasm_bridge = { path = '../wasm_bridge/' }
+
+[features]
+hot-reload = ["wasm_bridge/hot-reload"]
+

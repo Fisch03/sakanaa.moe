@@ -1,4 +1,4 @@
-use crate::gfx::{DitherImage, DitherPattern, DitherSettings, Palette};
+use common::gfx::{DitherImage, DitherPattern, DitherSettings, Palette};
 use maud::{Markup, html};
 
 pub fn shared() -> Markup {

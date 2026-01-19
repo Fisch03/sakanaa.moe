@@ -15,12 +15,23 @@ $bg-levels: "primary", "secondary", "tertiary";
   background-color: var(--secondary-col);
 }
 
+@mixin column() {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  & > * {
+    @include container();
+  }
+}
+
 @mixin container() {
   @include no-bg();
 
   border: 2px solid var(--primary-col);
   box-shadow: 4px 4px 0 var(--primary-col);
 }
+
 
 @function snap($val) {
   @return round($val, $bg-size);
@@ -65,16 +76,16 @@ body {
   $icon-size: pixels(64px);
 
   @include desktop {
-    grid-template-columns: $icon-size snap(calc(60% - $icon-size)) 1fr;
+    grid-template-columns: snap(calc(30%)) snap(calc(60%));
   }
   @include mobile {
-    grid-template-rows: pixels(64px) 1fr;
-    & > :last-child {
+    grid-template-columns: snap(100%);
+    & > :first-child {
       display: none;
     }
   }
 
   & > * {
-    @include container();
+    @include column();
   }
 }

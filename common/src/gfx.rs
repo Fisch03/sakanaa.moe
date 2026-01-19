@@ -1,12 +1,20 @@
 use image::{Rgb, RgbImage};
 use macros::include_palettes;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 type UMatrix<const N: usize> = [[usize; N]; N];
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
 pub enum DitherPattern {
+    #[default]
     Dither4x4,
+}
+
+#[derive(Debug, Error)]
+pub enum DitherPatternError {
+    #[error("Unsupported dither size")]
+    UnsupportedSize,
 }
 
 impl DitherPattern {
@@ -18,10 +26,10 @@ impl DitherPattern {
         [15, 7,13, 5],
     ];
 
-    pub const fn new(size: usize) -> Self {
+    pub const fn new(size: usize) -> Result<Self, DitherPatternError> {
         match size {
-            4 => DitherPattern::Dither4x4,
-            _ => panic!("Unsupported dither size"),
+            4 => Ok(DitherPattern::Dither4x4),
+            _ => Err(DitherPatternError::UnsupportedSize),
         }
     }
 
@@ -39,12 +47,6 @@ impl DitherPattern {
 
     pub const fn max_level(&self) -> usize {
         self.size().pow(2) - 1
-    }
-}
-
-impl Default for DitherPattern {
-    fn default() -> Self {
-        DitherPattern::Dither4x4
     }
 }
 
@@ -70,11 +72,21 @@ impl DitherSettings {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize)]
 pub struct Palette {
     pub name: &'static str,
+    #[serde(serialize_with = "serde_rgb")]
     pub primary: Rgb<u8>,
+    #[serde(serialize_with = "serde_rgb")]
     pub secondary: Rgb<u8>,
+}
+
+fn serde_rgb<S>(color: &Rgb<u8>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let hex_string = format!("#{:02X}{:02X}{:02X}", color[0], color[1], color[2]);
+    serializer.serialize_str(&hex_string)
 }
 
 impl Palette {
@@ -96,7 +108,7 @@ impl Palette {
 }
 
 pub struct DitherImage {
-    img: RgbImage,
+    pub img: RgbImage,
     // palette: Palette,
     // dither: DitherSettings,
 }
@@ -114,13 +126,11 @@ impl DitherImage {
 
             let bayer_val = dither.pattern.get(x, y).unwrap();
 
-            let color = if bayer_val < dither.level {
+            if bayer_val < dither.level {
                 palette.primary
             } else {
                 palette.secondary
-            };
-
-            color
+            }
         });
 
         Self {
@@ -143,5 +153,16 @@ impl DitherImage {
         let mut output = String::from("data:image/png;base64,");
         BASE64_STANDARD_NO_PAD.encode_string(buf, &mut output);
         output
+    }
+
+    pub fn to_png_bytes(&self) -> Vec<u8> {
+        use image::ImageFormat;
+        use std::io::Cursor;
+
+        let mut buf = Vec::new();
+        self.img
+            .write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)
+            .unwrap();
+        buf
     }
 }

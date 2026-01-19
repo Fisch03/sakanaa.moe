@@ -8,8 +8,8 @@ proc-macro-error = "1"
 proc-macro2 = "1"
 quote = "1"
 
-anyhow = "1"
-image = { version = "0.25", default-features = false, features = ["png"] }
+anyhow.workspace = true
+image.workspace = true
 
 [lib]
 proc-macro = true

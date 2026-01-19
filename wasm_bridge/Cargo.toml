@@ -1,0 +1,30 @@
+[package]
+name = "wasm_bridge"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+log.workspace = true
+
+maud.workspace = true
+
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+web-sys = { workspace = true, features = [
+    "Window", 
+    "Document", 
+    "Element", 
+
+    "Location",
+    "Url",
+
+    "WebSocket", 
+    "MessageEvent",
+    "CloseEvent",
+
+    "console",
+] }
+
+[features]
+hot-reload = []
+
