@@ -8,6 +8,14 @@ pub mod components {
 use maud::{DOCTYPE, html};
 
 #[unsafe(no_mangle)]
+pub extern "C" fn style() -> *mut u8 {
+    include_str!("../style/main.scss");
+    static CSS: &str = grass::include!("site/style/main.scss");
+
+    wasm_bridge::to_host_string(CSS.to_string())
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn render(path_ptr: *const u8, path_len: usize) -> *mut u8 {
     wasm_bridge::init();
 
@@ -30,7 +38,6 @@ pub extern "C" fn render(path_ptr: *const u8, path_len: usize) -> *mut u8 {
                             p { "path: " (path) }
                             p { "status: " span id="status" { "server rendered" } }
                             button onclick="window.trigger_action()" { "click me!" }
-                            "test"
                         }
                     }
                 }

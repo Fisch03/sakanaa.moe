@@ -34,7 +34,7 @@ $bg-levels: "primary", "secondary", "tertiary";
 
 
 @function snap($val) {
-  @return round($val, $bg-size);
+  @return Round($val, $bg-size);
 }
 @function pixels($val) {
   @return $val * $pixel-scale;

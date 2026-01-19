@@ -4,7 +4,8 @@ use axum::{
         State,
         ws::{Message, WebSocketUpgrade},
     },
-    response::{Html, IntoResponse},
+    http::{StatusCode, Uri},
+    response::{Html, IntoResponse, Response},
     routing::get,
 };
 use log::*;
@@ -22,27 +23,25 @@ use tokio::sync::broadcast;
 use tower_http::services::ServeDir;
 use wasmtime::*;
 
+/// Main service struct handling the WASM runtime and file watching.
 pub struct WasmService {
     state: Arc<WasmState>,
     _watcher: RecommendedWatcher,
     pkg_dir: PathBuf,
 }
 
+/// Shared state for the WASM service.
 struct WasmState {
     engine: Engine,
     module: RwLock<Option<Module>>,
     wasm_path: PathBuf,
-    // Channel to notify active WebSocket connections to reload
     reload_tx: broadcast::Sender<()>,
-    // Store the last known file hash to dedup events
     last_hash: RwLock<u64>,
 }
 
 impl WasmService {
     pub fn new<P: Into<PathBuf>>(wasm_path: P) -> Self {
         let wasm_path = wasm_path.into();
-
-        // Create a broadcast channel for reload signals
         let (reload_tx, _) = broadcast::channel(16);
 
         let mut config = wasmtime::Config::new();
@@ -62,64 +61,79 @@ impl WasmService {
             last_hash: RwLock::new(0),
         });
 
+        // Initial load
         Self::load_wasm(&state);
-        // Initialize hash
         if let Some(h) = Self::calculate_hash(&state.wasm_path) {
             *state.last_hash.write().unwrap() = h;
         }
 
-        let watcher_state = state.clone();
-        let mut watcher = RecommendedWatcher::new(
-            move |res: Result<Event, _>| match res {
-                Ok(event) => {
-                    let is_target_file = event
-                        .paths
-                        .iter()
-                        .any(|p| p.file_name() == watcher_state.wasm_path.file_name());
-
-                    if !is_target_file {
-                        return;
-                    }
-
-                    match event.kind {
-                        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
-                            thread::sleep(Duration::from_millis(250));
-
-                            let new_hash =
-                                Self::calculate_hash(&watcher_state.wasm_path).unwrap_or(0);
-                            let mut last_hash = watcher_state.last_hash.write().unwrap();
-
-                            if new_hash != *last_hash {
-                                info!("wasm changed (hash mismatch), reloading...");
-                                *last_hash = new_hash;
-                                drop(last_hash);
-
-                                Self::load_wasm(&watcher_state);
-
-                                let _ = watcher_state.reload_tx.send(());
-                            } else {
-                                debug!("wasm event detected but hash identical, ignoring");
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                Err(e) => log::error!("watch error: {}", e),
-            },
-            Config::default(),
-        )
-        .expect("failed to create file watcher");
-
-        if let Some(parent) = wasm_path.parent() {
-            let _ = watcher.watch(parent, RecursiveMode::NonRecursive);
-        }
-
+        // Setup watcher
+        let watcher = Self::setup_watcher(state.clone());
         let pkg_dir = wasm_path.parent().unwrap_or(&wasm_path).to_path_buf();
 
         WasmService {
             state,
             _watcher: watcher,
             pkg_dir,
+        }
+    }
+
+    pub fn router(&self) -> Router {
+        Router::new()
+            .route("/", get(render_handler))
+            .route("/_ws", get(ws_handler))
+            .fallback(get(render_handler))
+            .nest_service("/pkg", ServeDir::new(&self.pkg_dir))
+            .with_state(self.state.clone())
+    }
+
+    fn setup_watcher(state: Arc<WasmState>) -> RecommendedWatcher {
+        let watcher_state = state.clone();
+        let mut watcher = RecommendedWatcher::new(
+            move |res: Result<Event, _>| match res {
+                Ok(event) => Self::handle_watch_event(&watcher_state, event),
+                Err(e) => log::error!("watch error: {}", e),
+            },
+            Config::default(),
+        )
+        .expect("failed to create file watcher");
+
+        if let Some(parent) = state.wasm_path.parent() {
+            let _ = watcher.watch(parent, RecursiveMode::NonRecursive);
+        }
+        watcher
+    }
+
+    fn handle_watch_event(state: &Arc<WasmState>, event: Event) {
+        let is_target = event
+            .paths
+            .iter()
+            .any(|p| p.file_name() == state.wasm_path.file_name());
+
+        if !is_target {
+            return;
+        }
+
+        match event.kind {
+            EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_) => {
+                // Debounce slightly
+                thread::sleep(Duration::from_millis(250));
+
+                let new_hash = Self::calculate_hash(&state.wasm_path).unwrap_or(0);
+                let mut last_hash = state.last_hash.write().unwrap();
+
+                if new_hash != *last_hash {
+                    info!("wasm changed (hash mismatch), reloading...");
+                    *last_hash = new_hash;
+                    drop(last_hash); // release lock before loading
+
+                    Self::load_wasm(state);
+                    let _ = state.reload_tx.send(());
+                } else {
+                    debug!("wasm event detected but hash identical, ignoring");
+                }
+            }
+            _ => {}
         }
     }
 
@@ -139,151 +153,127 @@ impl WasmService {
         info!("loading wasm module from {:?}", state.wasm_path);
         match Module::from_file(&state.engine, &state.wasm_path) {
             Ok(m) => {
-                let mut lock = state.module.write().unwrap();
-                *lock = Some(m);
+                *state.module.write().unwrap() = Some(m);
                 info!("wasm module loaded successfully");
             }
             Err(e) => error!("failed to load wasm module: {}", e),
         }
     }
-
-    pub fn router(&self) -> Router {
-        Router::new()
-            .route("/", get(render_handler))
-            // Websocket route for HMR
-            .route("/_ws", get(ws_handler))
-            .fallback(get(render_handler))
-            .nest_service("/pkg", ServeDir::new(&self.pkg_dir))
-            .with_state(self.state.clone())
-    }
 }
+
+// --- Handlers ---
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<Arc<WasmState>>,
 ) -> impl IntoResponse {
     ws.on_upgrade(|mut socket| async move {
-        // Subscribe to the reload broadcast channel
         let mut rx = state.reload_tx.subscribe();
-
-        // Wait for a reload signal
         while let Ok(()) = rx.recv().await {
             if socket.send(Message::Text("reload".into())).await.is_err() {
-                // Client disconnected
                 break;
             }
         }
     })
 }
 
-async fn render_handler(
-    State(state): State<Arc<WasmState>>,
-    uri: axum::http::Uri,
-) -> impl IntoResponse {
+async fn render_handler(State(state): State<Arc<WasmState>>, uri: Uri) -> Response {
     let module_guard = state.module.read().unwrap();
-    let module = match module_guard.as_ref() {
-        Some(m) => m,
-        None => {
-            return Html(html! {
-                h1 { "wasm module not loaded (yet)." }
-            })
-            .into_response();
-        }
+    let Some(module) = module_guard.as_ref() else {
+        return Html(html! { h1 { "wasm module not loaded (yet)." } }).into_response();
     };
 
-    let mut store = Store::new(&state.engine, ());
-    let mut linker = Linker::new(&state.engine);
+    match execute_wasm_render(&state.engine, module, uri.path()) {
+        Ok(html_content) => Html(html_content).into_response(),
+        Err(e) => {
+            error!("WASM Render Error: {}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Internal Server Error: {}", e),
+            )
+                .into_response()
+        }
+    }
+}
 
+// --- WASM Execution ---
+
+fn execute_wasm_render(engine: &Engine, module: &Module, path_str: &str) -> Result<String, String> {
+    let mut store = Store::new(engine, ());
+    let mut linker = Linker::new(engine);
+
+    setup_imports(&mut linker, module).map_err(|e| e.to_string())?;
+
+    linker
+        .define_unknown_imports_as_default_values(&mut store, module)
+        .map_err(|e| format!("failed to define imports: {}", e))?;
+
+    let instance = linker
+        .instantiate(&mut store, module)
+        .map_err(|e| format!("failed to instantiate: {}", e))?;
+
+    // Allocation
+    let input_str = WasmInputString::new(&mut store, &instance, path_str)
+        .map_err(|e| format!("alloc failed: {}", e))?;
+
+    // Call render
+    let render_func = instance
+        .get_typed_func::<(i32, i32), i32>(&mut store, "render")
+        .map_err(|e| format!("missing render export: {}", e))?;
+
+    let result_ptr = render_func
+        .call(&mut store, (input_str.ptr, input_str.len))
+        .map_err(|e| format!("render call failed: {}", e))?;
+
+    input_str.dealloc(&mut store, &instance);
+
+    // Read Output
+    let output_str = WasmOutputString::from_ptr(&mut store, &instance, result_ptr)
+        .map_err(|e| format!("read output failed: {}", e))?;
+
+    let result = output_str.text.clone();
+    output_str.dealloc(&mut store, &instance);
+
+    Ok(result)
+}
+
+fn setup_imports(linker: &mut Linker<()>, module: &Module) -> anyhow::Result<()> {
     for import in module.imports() {
         let name = import.name();
         let module_name = import.module();
 
+        // Helper macro to reduce repetition
+        macro_rules! log_import {
+            ($level:ident) => {
+                linker.func_wrap(
+                    module_name,
+                    name,
+                    |mut caller: Caller<'_, ()>, ptr: i32, len: i32| {
+                        let msg = read_wasm_string_raw(&mut caller, ptr, len);
+                        log::$level!("[WASM]: {}", msg);
+                    },
+                )
+            };
+        }
+
         if name.contains("info") {
-            linker
-                .func_wrap(
-                    module_name,
-                    name,
-                    |mut caller: Caller<'_, ()>, ptr: i32, len: i32| {
-                        let msg = read_wasm_string(&mut caller, ptr, len);
-                        info!("[WASM]: {}", msg);
-                    },
-                )
-                .unwrap();
+            log_import!(info)?;
         } else if name.contains("error") {
-            linker
-                .func_wrap(
-                    module_name,
-                    name,
-                    |mut caller: Caller<'_, ()>, ptr: i32, len: i32| {
-                        let msg = read_wasm_string(&mut caller, ptr, len);
-                        error!("[WASM]: {}", msg);
-                    },
-                )
-                .unwrap();
+            log_import!(error)?;
         } else if name.contains("warn") {
-            linker
-                .func_wrap(
-                    module_name,
-                    name,
-                    |mut caller: Caller<'_, ()>, ptr: i32, len: i32| {
-                        let msg = read_wasm_string(&mut caller, ptr, len);
-                        warn!("[WASM]: {}", msg);
-                    },
-                )
-                .unwrap();
+            log_import!(warn)?;
         } else if name.contains("debug") {
-            linker
-                .func_wrap(
-                    module_name,
-                    name,
-                    |mut caller: Caller<'_, ()>, ptr: i32, len: i32| {
-                        let msg = read_wasm_string(&mut caller, ptr, len);
-                        debug!("[WASM]: {}", msg);
-                    },
-                )
-                .unwrap();
+            log_import!(debug)?;
         }
     }
-
-    let Ok(()) = linker.define_unknown_imports_as_default_values(&mut store, module) else {
-        return Html(html! {
-            h1 { "failed to define imports for wasm module." }
-        })
-        .into_response();
-    };
-
-    let instance = linker.instantiate(&mut store, module).unwrap();
-
-    // --- CALL SERVER RENDER ---
-    let path_str = uri.path().to_string();
-
-    // Allocate input string in WASM memory
-    let input_str = WasmInputString::new(&mut store, &instance, &path_str);
-
-    let render_func = instance
-        .get_typed_func::<(i32, i32), i32>(&mut store, "render")
-        .unwrap();
-
-    let result_ptr = render_func
-        .call(&mut store, (input_str.ptr, input_str.len))
-        .unwrap();
-
-    // Free the input string now that we are done with it
-    input_str.dealloc(&mut store, &instance);
-
-    // Read the output string from WASM memory
-    let output_str = WasmOutputString::from_ptr(&mut store, &instance, result_ptr);
-    let html_content = output_str.text.clone();
-
-    // Free the output string
-    output_str.dealloc(&mut store, &instance);
-
-    Html(html_content).into_response()
+    Ok(())
 }
 
-fn read_wasm_string(caller: &mut Caller<'_, ()>, ptr: i32, len: i32) -> String {
+// --- ABI & Memory Helpers ---
+
+fn read_wasm_string_raw(caller: &mut Caller<'_, ()>, ptr: i32, len: i32) -> String {
     let memory = caller.get_export("memory").unwrap().into_memory().unwrap();
-    let data = memory.data(&caller);
+    let data = memory.data(caller);
     let slice = &data[ptr as usize..(ptr + len) as usize];
     String::from_utf8_lossy(slice).to_string()
 }
@@ -294,27 +284,25 @@ struct WasmInputString {
 }
 
 impl WasmInputString {
-    fn new(store: &mut Store<()>, instance: &Instance, s: &str) -> Self {
-        let alloc = instance
-            .get_typed_func::<i32, i32>(&mut *store, "alloc")
-            .expect("wasm module must export 'alloc'");
+    fn new(store: &mut Store<()>, instance: &Instance, s: &str) -> anyhow::Result<Self> {
+        let alloc = instance.get_typed_func::<i32, i32>(&mut *store, "alloc")?;
 
         let len = s.len() as i32;
-        let ptr = alloc.call(&mut *store, len).unwrap();
+        let ptr = alloc.call(&mut *store, len)?;
 
-        let memory = instance.get_memory(&mut *store, "memory").unwrap();
-        memory
-            .write(&mut *store, ptr as usize, s.as_bytes())
-            .unwrap();
+        let memory = instance
+            .get_memory(&mut *store, "memory")
+            .ok_or_else(|| anyhow::anyhow!("memory export not found"))?;
 
-        Self { ptr, len }
+        memory.write(&mut *store, ptr as usize, s.as_bytes())?;
+
+        Ok(Self { ptr, len })
     }
 
     fn dealloc(self, store: &mut Store<()>, instance: &Instance) {
-        let dealloc = instance
-            .get_typed_func::<(i32, i32), ()>(&mut *store, "dealloc")
-            .expect("wasm module must export 'dealloc'");
-        dealloc.call(store, (self.ptr, self.len)).unwrap();
+        if let Ok(dealloc) = instance.get_typed_func::<(i32, i32), ()>(&mut *store, "dealloc") {
+            let _ = dealloc.call(store, (self.ptr, self.len));
+        }
     }
 }
 
@@ -325,29 +313,40 @@ struct WasmOutputString {
 }
 
 impl WasmOutputString {
-    fn from_ptr(store: &mut Store<()>, instance: &Instance, ptr: i32) -> Self {
-        let memory = instance.get_memory(&mut *store, "memory").unwrap();
-        let data = memory.data(&store);
+    fn from_ptr(store: &mut Store<()>, instance: &Instance, ptr: i32) -> anyhow::Result<Self> {
+        let memory = instance
+            .get_memory(&mut *store, "memory")
+            .ok_or_else(|| anyhow::anyhow!("memory export not found"))?;
+        let data = memory.data(store);
+
+        if ptr < 0 || (ptr as usize) + 4 > data.len() {
+            return Err(anyhow::anyhow!("invalid output pointer"));
+        }
 
         let len_bytes = &data[ptr as usize..(ptr as usize + 4)];
         let len = u32::from_le_bytes(len_bytes.try_into().unwrap()) as usize;
 
         let start = ptr as usize + 4;
         let end = start + len;
+
+        if end > data.len() {
+            return Err(anyhow::anyhow!("output string out of bounds"));
+        }
+
         let str_bytes = &data[start..end];
         let text = String::from_utf8_lossy(str_bytes).to_string();
 
-        Self {
+        Ok(Self {
             ptr,
             total_len: (len + 4) as i32,
             text,
-        }
+        })
     }
 
     fn dealloc(self, store: &mut Store<()>, instance: &Instance) {
-        let dealloc = instance
-            .get_typed_func::<(i32, i32), ()>(&mut *store, "dealloc")
-            .expect("wasm module must export 'dealloc'");
-        dealloc.call(store, (self.ptr, self.total_len)).unwrap();
+        if let Ok(dealloc) = instance.get_typed_func::<(i32, i32), ()>(&mut *store, "dealloc") {
+            let _ = dealloc.call(store, (self.ptr, self.total_len));
+        }
     }
 }
+

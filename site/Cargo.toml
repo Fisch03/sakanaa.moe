@@ -8,6 +8,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 maud.workspace = true
+grass.workspace = true
 
 log.workspace = true
 

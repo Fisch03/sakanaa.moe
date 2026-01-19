@@ -10,6 +10,7 @@ maud.workspace = true
 
 wasm-bindgen.workspace = true
 js-sys.workspace = true
+console_error_panic_hook.workspace = true
 web-sys = { workspace = true, features = [
     "Window", 
     "Document", 
