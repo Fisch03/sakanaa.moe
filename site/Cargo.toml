@@ -6,6 +6,7 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib"]
 
+
 [dependencies]
 maud.workspace = true
 grass.workspace = true
@@ -18,7 +19,7 @@ web-sys = { workspace = true, features = [] }
 
 common = { path = '../common/' }
 wasm_bridge = { path = '../wasm_bridge/' }
+lol_alloc = "0.4.1"
 
 [features]
 hot-reload = ["wasm_bridge/hot-reload"]
-

@@ -27,7 +27,7 @@ pub fn color_style(palette: Palette) -> Markup {
     ];
 
     html! {
-        style {
+        style data-hmr-ignore {
             ":root {"
                 // "--pattern-size: " (pattern.size()) "px;"
 

@@ -12,6 +12,7 @@ pub use logger::init_logger;
 
 pub fn init() {
     init_logger();
+    #[cfg(debug_assertions)]
     console_error_panic_hook::set_once();
 
     #[cfg(feature = "hot-reload")]
@@ -23,8 +24,19 @@ pub fn init() {
 pub fn load_wasm_module() -> Markup {
     html! {
         script type="module" {
-            "import init from '/pkg/site.js'; init();"
+            @if cfg!(feature = "hot-reload") {
+                (maud::PreEscaped(r#"
+                import init from '/pkg/site.js';
+                window._reload_wasm = async () => {
+                    const timestamp = Date.now();
+                    const mod = await import(`/pkg/site.js?t=${timestamp}`);
+                    await mod.default();
+                };
+                init();
+                "#))
+            } @else {
+                "import init from '/pkg/site.js'; init();"
+            }
         }
     }
 }
-
