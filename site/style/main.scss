@@ -4,6 +4,8 @@ $pixel-scale: 2;
 $bg-size: #{4 * $pixel-scale}px;
 $bg-levels: "primary", "secondary", "tertiary";
 
+$anim-duration: 0.6s;
+
 @mixin bg($level) {
   background-image: var(--#{$level}-bg);
   background-repeat: repeat;
@@ -63,6 +65,7 @@ html, body {
   @include bg(secondary);
 
   margin: 0;
+  padding: 0;
   height: 100%;
 
   image-rendering: pixelated;
@@ -70,13 +73,11 @@ html, body {
 
 body {
   box-sizing: border-box;
-  padding: 4rem;
 }
 
 
 #main {
-  height: snap(100%);
-  width: snap(100%);
+  padding: 4rem;
 
   display: grid;
   gap: 5rem;
@@ -94,5 +95,74 @@ body {
 
   & > * {
     @include column();
+  }
+}
+
+#album_grid {
+  $angle: 30deg;
+  $album-size: snap(12vw);
+  
+  $rotated-width: calc(#{$album-size} / #{math.cos($angle)});
+  $gap-compensation: calc(#{$rotated-width} - #{$album-size});
+
+  $anim-stagger: 60ms;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: calc(1rem + #{$gap-compensation});
+
+  pointer-events: none;
+
+  .album_column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: $album-size;
+    flex-shrink: 0;
+    
+    opacity: 0;
+
+    --dir: 1;
+    --offset: var(--offset-0, 0px);
+
+    transform-origin: center;
+    transform: rotate($angle) translateY(calc(var(--scroll-y, 0px) * var(--dir) + var(--offset, 0px)));
+
+    animation: fadeIn $anim-duration ease-out forwards;
+    animation-delay: calc(var(--anim-idx) * $anim-stagger);
+    @keyframes fadeIn {
+      to {
+        opacity: 1;
+      }
+    }
+
+    &:nth-child(even) {
+      --dir: -1;
+      --offset: var(--offset-1, 0px);
+    }
+
+    .album {
+      width: $album-size;
+      height: $album-size;
+      flex-shrink: 0;
+      border: 2px solid var(--primary-col);
+      background-color: var(--secondary-col);
+
+      transform: rotate(-$angle);
+
+      border-radius: 100%;
+    }
+  }
+
+  &.active {
+    pointer-events: auto;
   }
 }

@@ -1,32 +1,123 @@
-use log::warn;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-pub fn host_update_element(id: &str, content: &str) {
-    if let Some(window) = web_sys::window()
-        && let Some(document) = window.document()
-    {
-        if let Some(element) = document.get_element_by_id(id) {
-            element.set_inner_html(content);
-        } else {
-            warn!("WASM tried to update missing element: {}", id);
-        }
+use crate::Window;
+
+pub fn document() -> web_sys::Document {
+    Window::get().document().expect("Document object not found")
+}
+
+pub struct Element {
+    inner: web_sys::Element,
+}
+
+impl Element {
+    pub fn create(tag: &str) -> Self {
+        let inner = document().create_element(tag).expect("Failed to create element");
+        Self { inner }
+    }
+
+    pub fn by_id(id: &str) -> Option<Self> {
+        let doc = document();
+        let inner = doc.get_element_by_id(id)?;
+        Some(Self { inner })
+    }
+
+    pub fn select(selector: &str) -> Option<Self> {
+        let doc = document();
+        let inner = doc.query_selector(selector).ok().flatten()?;
+        Some(Self { inner })
+    }
+
+    fn html_element(&self) -> Option<web_sys::HtmlElement> {
+        self.inner.dyn_ref::<web_sys::HtmlElement>().cloned()
+    }
+
+    pub fn set_inner_html(&self, content: &str) {
+        self.inner.set_inner_html(content);
+    }
+
+    pub fn add_class(&self, class: &str) {
+        let _ = self.inner.class_list().add_1(class);
+    }
+
+    pub fn remove_class(&self, class: &str) {
+        let _ = self.inner.class_list().remove_1(class);
+    }
+
+    /// returns true if the class is now present, false if it was removed
+    pub fn toggle_class(&self, class: &str) -> bool {
+        self.inner.class_list().toggle(class).unwrap_or(false)
+    }
+
+    pub fn set_style(&self, property: &str, value: &str) {
+        let style = self
+            .html_element()
+            .expect("Element is not an HtmlElement")
+            .style();
+        style.set_property(property, value).ok();
+    }
+    
+    pub fn get_style(&self, property: &str) -> Option<String> {
+         self.html_element()?.style().get_property_value(property).ok()
+    }
+
+    pub fn append(&self, child: &Element) {
+        let _ = self.inner.append_child(&child.inner);
+    }
+
+    pub fn prepend(&self, child: &Element) {
+        let _ = self.inner.prepend_with_node_1(&child.inner);
+    }
+    
+    pub fn remove(&self) {
+        self.inner.remove();
+    }
+
+    pub fn rect(&self) -> (f64, f64, f64, f64) {
+        let rect = self.inner.get_bounding_client_rect();
+        (rect.x(), rect.y(), rect.width(), rect.height())
+    }
+    
+    pub fn first_child(&self) -> Option<Element> {
+        self.inner.first_element_child().map(|inner| Element { inner })
+    }
+
+    pub fn last_child(&self) -> Option<Element> {
+         self.inner.last_element_child().map(|inner| Element { inner })
+    }
+
+    pub fn next_sibling(&self) -> Option<Element> {
+        self.inner.next_element_sibling().map(|inner| Element { inner })
     }
 }
 
-pub fn attach_window_fn<F>(name: &str, f: F)
-where
-    F: FnMut() + 'static,
-{
-    let closure = Closure::wrap(Box::new(f) as Box<dyn FnMut()>);
+pub struct ElementCollection {
+    elements: Vec<Element>,
+}
 
-    if let Some(window) = web_sys::window() {
-        let _ = js_sys::Reflect::set(
-            &window,
-            &JsValue::from_str(name),
-            closure.as_ref().unchecked_ref(),
-        );
+impl ElementCollection {
+    pub fn select(selector: &str) -> Self {
+        let doc = document();
+        let Some(node_list) = doc.query_selector_all(selector).ok() else {
+            return Self {
+                elements: Vec::new(),
+            };
+        };
+
+        let mut elements = Vec::new();
+        elements.reserve_exact(node_list.length() as usize);
+        for i in 0..node_list.length() {
+            if let Some(node) = node_list.item(i)
+                && let Ok(elem) = node.dyn_into::<web_sys::Element>()
+            {
+                elements.push(Element { inner: elem });
+            }
+        }
+
+        Self { elements }
     }
 
-    closure.forget();
+    pub fn iter(&self) -> impl Iterator<Item = &Element> {
+        self.elements.iter()
+    }
 }

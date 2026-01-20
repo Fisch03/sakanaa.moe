@@ -1,14 +1,16 @@
 mod abi;
-pub mod dom;
 #[cfg(feature = "hot-reload")]
 mod hot_reload;
 mod logger;
 
+pub mod dom;
+pub mod window;
 use maud::{Markup, html};
 
 pub use abi::{alloc, dealloc, from_host_string, to_host_string};
-pub use dom::{attach_window_fn, host_update_element};
+pub use dom::{Element, ElementCollection, document};
 pub use logger::init_logger;
+pub use window::Window;
 
 pub fn init() {
     init_logger();

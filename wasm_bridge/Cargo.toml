@@ -13,11 +13,21 @@ js-sys.workspace = true
 console_error_panic_hook.workspace = true
 web-sys = { workspace = true, features = [
     "Window", 
+
     "Document", 
     "HtmlDocument",
+
+    "Element", 
+    "HtmlElement",
     "HtmlStyleElement",
     "HtmlHeadElement",
-    "Element", 
+
+    "CssStyleDeclaration",
+
+    "DomTokenList",
+    "DomRect",
+
+    "NodeList",
 
     "Location",
     "Url",
@@ -25,6 +35,8 @@ web-sys = { workspace = true, features = [
     "WebSocket", 
     "MessageEvent",
     "CloseEvent",
+
+    "WheelEvent",
 
     "console",
 ] }
