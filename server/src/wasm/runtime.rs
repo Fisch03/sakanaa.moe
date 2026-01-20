@@ -1,5 +1,5 @@
 use anyhow::Result;
-use lol_html::{element, HtmlRewriter, Settings};
+use lol_html::{HtmlRewriter, Settings, element};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use wasmtime::*;
@@ -124,13 +124,13 @@ fn setup_imports(linker: &mut Linker<()>, module: &Module) -> Result<()> {
             };
         }
 
-        if name.contains("info") {
+        if name.contains("host_info") {
             log_import!(info)?;
-        } else if name.contains("error") {
+        } else if name.contains("host_error") {
             log_import!(error)?;
-        } else if name.contains("warn") {
+        } else if name.contains("host_warn") {
             log_import!(warn)?;
-        } else if name.contains("debug") {
+        } else if name.contains("host_debug") {
             log_import!(debug)?;
         }
     }
@@ -217,3 +217,4 @@ impl WasmOutputString {
         }
     }
 }
+

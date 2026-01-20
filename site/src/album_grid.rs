@@ -2,7 +2,49 @@ use log::debug;
 use maud::html;
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
-use wasm_bridge::{Element, ElementCollection, Window};
+use wasm_bridge::{BridgeWorker, Element, ElementCollection, Window};
+
+const WORKER_SCRIPT: &str = r#"
+console.log("Worker initializing...");
+const controllers = new Map();
+
+self.onmessage = async function(e) {
+    const { type, id } = e.data;
+
+    if (type === 'cancel') {
+        if (controllers.has(id)) {
+            controllers.get(id).abort();
+            controllers.delete(id);
+        }
+        return;
+    }
+
+    if (type === 'fetch') {
+        try {
+            // console.log(`Worker fetching album ${id}...`);
+            const controller = new AbortController();
+            controllers.set(id, controller);
+
+            const origin = self.location.origin;
+            const response = await fetch(`${origin}/api/v1/music/album/${id}`, {
+                signal: controller.signal
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            self.postMessage({ id, image: data.cover_data });
+        } catch (err) {
+            if (err.name !== 'AbortError') {
+                console.error("Worker fetch error:", err);
+            }
+        } finally {
+            controllers.delete(id);
+        }
+    }
+};
+"#;
 
 struct State {
     velocity: f64,
@@ -11,6 +53,7 @@ struct State {
     row_counts: (i32, i32),
     logical_size: f64,
     alive: bool,
+    worker: Rc<RefCell<BridgeWorker>>,
 }
 
 pub struct AlbumGrid {
@@ -29,6 +72,35 @@ impl AlbumGrid {
     }
 
     pub fn new() -> Self {
+        let worker = Rc::new(RefCell::new(
+            BridgeWorker::new_from_script(WORKER_SCRIPT).expect("Failed to create worker"),
+        ));
+
+        // Setup worker message handler
+        {
+            let mut w = worker.borrow_mut();
+            w.set_onmessage(move |e| {
+                if let Ok(data) = e.data().dyn_into::<js_sys::Object>() {
+                    let id_val = js_sys::Reflect::get(&data, &"id".into()).unwrap();
+                    let image_val = js_sys::Reflect::get(&data, &"image".into()).unwrap();
+
+                    if let (Some(id), Some(image_b64)) = (id_val.as_string(), image_val.as_string())
+                    {
+                        if let Some(album_elem) = Element::by_id(&format!("album-{}", id)) {
+                            album_elem.set_style(
+                                "background-image",
+                                &format!("url('data:image/webp;base64,{}')", image_b64),
+                            );
+                            album_elem.set_style("background-size", "cover");
+                        }
+                    }
+                }
+            });
+            w.set_onerror(move |e| {
+                debug!("Worker error: {:?}", e.message());
+            });
+        }
+
         let state = Rc::new(RefCell::new(State {
             velocity: -40.0,
             current_y: 0.0,
@@ -36,6 +108,7 @@ impl AlbumGrid {
             row_counts: (0, 0),
             logical_size: 170.0,
             alive: true,
+            worker: worker.clone(),
         }));
 
         let window = Window::get();
@@ -210,8 +283,19 @@ impl State {
             .enumerate()
             .filter(|(j, _)| j % 2 == parity)
             .for_each(|(_, col)| {
+                let id: u64 = rand::random();
+                let id_str = id.to_string();
+
                 let album = Element::create("div");
                 album.add_class("album");
+                album.set_attribute("id", &format!("album-{}", id_str));
+
+                // Send message to worker
+                let msg = js_sys::Object::new();
+                let _ = js_sys::Reflect::set(&msg, &"id".into(), &id_str.into());
+                let _ = js_sys::Reflect::set(&msg, &"type".into(), &"fetch".into());
+                let _ = self.worker.borrow().post_message(&msg);
+
                 if prepend {
                     col.prepend(&album);
                 } else {
@@ -232,6 +316,14 @@ impl State {
                     col.last_child()
                 };
                 if let Some(child) = to_remove {
+                    if let Some(dom_id) = child.get_attribute("id") {
+                        if let Some(id_str) = dom_id.strip_prefix("album-") {
+                            let msg = js_sys::Object::new();
+                            let _ = js_sys::Reflect::set(&msg, &"id".into(), &id_str.into());
+                            let _ = js_sys::Reflect::set(&msg, &"type".into(), &"cancel".into());
+                            let _ = self.worker.borrow().post_message(&msg);
+                        }
+                    }
                     child.remove();
                     removed = true;
                 }
@@ -245,6 +337,7 @@ impl Drop for AlbumGrid {
         debug!("Dropping AlbumGrid!");
 
         self.state.borrow_mut().alive = false;
+        self.state.borrow_mut().worker.borrow().terminate();
 
         let window = Window::get();
         window.remove_listener("wheel", self._wheel_closure.as_ref());
@@ -256,4 +349,3 @@ impl Drop for AlbumGrid {
         }
     }
 }
-

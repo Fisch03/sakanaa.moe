@@ -23,6 +23,8 @@ use handlers::{render_handler, style_handler, ws_handler};
 use runtime::{calculate_string_hash, execute_wasm_render, execute_wasm_style, sanitize_html};
 use state::{WasmHash, WasmUpdate};
 
+use super::AppState;
+
 /// Main service struct handling the WASM runtime and file watching.
 pub struct WasmService {
     state: Arc<WasmState>,
@@ -72,7 +74,7 @@ impl WasmService {
         }
     }
 
-    pub fn router(&self) -> Router {
+    pub fn router(&self) -> Router<AppState> {
         Router::new()
             .route("/", get(render_handler))
             .route("/style/main.css", get(style_handler))
@@ -109,7 +111,7 @@ impl WasmService {
         let is_target = events.iter().any(|e| {
             e.path
                 .file_name()
-                .map_or(false, |n| n == state.wasm_path.file_name().unwrap())
+                .is_some_and(|n| n == state.wasm_path.file_name().unwrap())
         });
 
         if !is_target {
@@ -133,8 +135,7 @@ impl WasmService {
 
             if let Some(new_module) = Self::load_wasm_module(state) {
                 let new_css = execute_wasm_style(&state.engine, &new_module).unwrap_or_default();
-                let new_html =
-                    execute_wasm_render(&state.engine, &new_module).unwrap_or_default();
+                let new_html = execute_wasm_render(&state.engine, &new_module).unwrap_or_default();
 
                 let new_css_hash = WasmHash(calculate_string_hash(&new_css));
                 let new_html_hash = WasmHash(calculate_string_hash(&sanitize_html(&new_html)));
@@ -198,4 +199,3 @@ impl WasmService {
         }
     }
 }
-

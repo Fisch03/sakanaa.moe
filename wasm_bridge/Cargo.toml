@@ -35,8 +35,14 @@ web-sys = { workspace = true, features = [
     "WebSocket", 
     "MessageEvent",
     "CloseEvent",
+    "ErrorEvent",
 
     "WheelEvent",
+
+    "Worker",
+    "WorkerOptions",
+    "Blob",
+    "BlobPropertyBag",
 
     "console",
 ] }

@@ -6,14 +6,20 @@ edition = "2024"
 [dependencies]
 tokio = { version = "1.44", features = ["rt", "rt-multi-thread", "net", "sync"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query", "json", "ws"] }
-wasmtime = "40"
-notify = "8"
 tower-http = { version = "0.6", features = ["fs", "compression-br", "compression-deflate", "compression-gzip", "compression-zstd", "cors"] }
 
-maud = { workspace = true, features = ["axum"] }
+wasmtime = "40"
 
-image.workspace = true
-serde.workspace = true
+notify = "8"
+notify-debouncer-mini = "0.7.0"
+jwalk = "0.8"
+
+maud = { workspace = true, features = ["axum"] }
+lol_html = "2.7.1"
+
+image = {workspace = true, default-features = true }
+fast_image_resize = { version = "6", features = ["image", "rayon"] }
+webp= "0.3"
 
 common = { path = '../common/' }
 
@@ -22,6 +28,14 @@ anyhow.workspace = true
 
 log.workspace = true
 colog = "1"
+
+serde.workspace = true
 serde_json = "1"
-lol_html = "2.7.1"
-notify-debouncer-mini = "0.7.0"
+base64.workspace = true
+
+rand.workspace = true
+
+lofty = "0.22"
+
+sqlx = { version = "0.8", default-features = false, features = [ "runtime-tokio", "sqlite", "derive", "migrate", "macros" ] }
+rayon = "1.11.0"

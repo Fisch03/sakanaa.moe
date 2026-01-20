@@ -9,10 +9,15 @@ use common::gfx::{DitherImage, DitherPattern, DitherSettings, Palette};
 use serde::Serialize;
 use tower_http::cors::{Any, CorsLayer};
 
-pub fn v1() -> Router {
+pub mod music;
+
+use super::AppState;
+
+pub async fn v1(state: AppState) -> Router<AppState> {
     let cors = CorsLayer::new().allow_methods(Any).allow_origin(Any);
 
     Router::new()
+        .nest("/music", music::init_api(state).await)
         .route("/health", get("OK"))
         .route("/dither/random/{pattern}/{level}", get(dither_handler))
         .layer(cors)

@@ -61,6 +61,14 @@ impl Element {
          self.html_element()?.style().get_property_value(property).ok()
     }
 
+    pub fn set_attribute(&self, name: &str, value: &str) {
+        let _ = self.inner.set_attribute(name, value);
+    }
+
+    pub fn get_attribute(&self, name: &str) -> Option<String> {
+        self.inner.get_attribute(name)
+    }
+
     pub fn append(&self, child: &Element) {
         let _ = self.inner.append_child(&child.inner);
     }
