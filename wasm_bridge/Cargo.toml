@@ -22,6 +22,9 @@ web-sys = { workspace = true, features = [
     "HtmlStyleElement",
     "HtmlHeadElement",
 
+    "HtmlCanvasElement",
+    "CanvasRenderingContext2d",
+
     "CssStyleDeclaration",
 
     "DomTokenList",
@@ -41,6 +44,7 @@ web-sys = { workspace = true, features = [
 
     "Worker",
     "WorkerOptions",
+
     "Blob",
     "BlobPropertyBag",
 

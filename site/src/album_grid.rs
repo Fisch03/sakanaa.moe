@@ -2,46 +2,66 @@ use log::debug;
 use maud::html;
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::prelude::*;
-use wasm_bridge::{BridgeWorker, Element, ElementCollection, Window};
+use wasm_bridge::{BridgeWorker, Element, ElementCollection, Window, document, dom::CanvasElement};
 
 const WORKER_SCRIPT: &str = r#"
 console.log("Worker initializing...");
-const controllers = new Map();
 
-self.onmessage = async function(e) {
+let queue = [];
+let pendingRequests = [];
+let isFetching = false;
+const MIN_BATCH_SIZE = 50;
+const MIN_THRESHOLD = 25;
+
+async function fetchAlbums() {
+    if (isFetching) return;
+    isFetching = true;
+
+    try {
+        const origin = self.location.origin;
+        const batchSize = Math.max(MIN_BATCH_SIZE, pendingRequests.length + MIN_THRESHOLD);
+        const response = await fetch(`${origin}/api/v1/music/album/random/${batchSize}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        for (const album of data) {
+            if (album.cover_id) {
+                queue.push(album);
+            }
+        }
+        
+        processQueue();
+    } catch (err) {
+        console.error("Worker fetch error:", err);
+    } finally {
+        isFetching = false;
+        if (queue.length === 0 && pendingRequests.length > 0) {
+             setTimeout(fetchAlbums, 1000);
+        }
+    }
+}
+
+function processQueue() {
+    while (pendingRequests.length > 0 && queue.length > 0) {
+        const id = pendingRequests.shift();
+        const album = queue.shift();
+        self.postMessage({ id, cover: album.cover_id });
+    }
+    
+    if (queue.length < MIN_THRESHOLD) {
+        fetchAlbums();
+    }
+}
+
+self.onmessage = function(e) {
     const { type, id } = e.data;
 
-    if (type === 'cancel') {
-        if (controllers.has(id)) {
-            controllers.get(id).abort();
-            controllers.delete(id);
-        }
-        return;
-    }
-
     if (type === 'fetch') {
-        try {
-            // console.log(`Worker fetching album ${id}...`);
-            const controller = new AbortController();
-            controllers.set(id, controller);
-
-            const origin = self.location.origin;
-            const response = await fetch(`${origin}/api/v1/music/album/${id}`, {
-                signal: controller.signal
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            self.postMessage({ id, image: data.cover_data });
-        } catch (err) {
-            if (err.name !== 'AbortError') {
-                console.error("Worker fetch error:", err);
-            }
-        } finally {
-            controllers.delete(id);
-        }
+        pendingRequests.push(id);
+        processQueue();
     }
 };
 "#;
@@ -76,20 +96,19 @@ impl AlbumGrid {
             BridgeWorker::new_from_script(WORKER_SCRIPT).expect("Failed to create worker"),
         ));
 
-        // Setup worker message handler
+        // setup worker message handler
         {
             let mut w = worker.borrow_mut();
             w.set_onmessage(move |e| {
                 if let Ok(data) = e.data().dyn_into::<js_sys::Object>() {
                     let id_val = js_sys::Reflect::get(&data, &"id".into()).unwrap();
-                    let image_val = js_sys::Reflect::get(&data, &"image".into()).unwrap();
+                    let image_val = js_sys::Reflect::get(&data, &"cover".into()).unwrap();
 
-                    if let (Some(id), Some(image_b64)) = (id_val.as_string(), image_val.as_string())
-                    {
+                    if let (Some(id), Some(cover_id)) = (id_val.as_string(), image_val.as_f64()) {
                         if let Some(album_elem) = Element::by_id(&format!("album-{}", id)) {
                             album_elem.set_style(
                                 "background-image",
-                                &format!("url('data:image/webp;base64,{}')", image_b64),
+                                &format!("url('/api/v1/music/cover/{}')", cover_id),
                             );
                             album_elem.set_style("background-size", "cover");
                         }
@@ -115,10 +134,10 @@ impl AlbumGrid {
         let grid_elem = Element::by_id("album_grid").expect("album_grid not found");
         grid_elem.add_class("active");
 
-        // Initial setup
+        // initial setup
         Self::initialize_dom(&grid_elem, state.clone());
 
-        // Register wheel listener
+        // register wheel listener
         let s_clone = state.clone();
         let _wheel_closure = window.add_wheel_event_listener(move |e| {
             let mut dy = e.delta_y();
@@ -160,8 +179,17 @@ impl AlbumGrid {
     fn initialize_dom(grid: &Element, state: Rc<RefCell<State>>) {
         let (w, h) = Window::get().size().unwrap_or((800.0, 600.0));
 
-        // Probe for dynamic sizes
-        grid.set_inner_html("<div class=\"album_column\"><div class=\"album\"></div><div class=\"album\"></div></div><div class=\"album_column\"></div>");
+        // probe size
+        grid.set_inner_html(
+            &html! {
+                .album_column {
+                    .album {}
+                    .album {}
+                }
+                .album_column {}
+            }
+            .into_string(),
+        );
 
         let albums = ElementCollection::select("#album_grid .album");
         let columns = ElementCollection::select("#album_grid .album_column");
@@ -178,6 +206,8 @@ impl AlbumGrid {
             100.0
         };
         grid.set_inner_html("");
+
+        Self::build_disk_frame(c_width);
 
         let cols_count = (w / c_width).ceil() as i32 + 10;
         let center_c = cols_count / 2;
@@ -203,6 +233,44 @@ impl AlbumGrid {
         grid.set_style("--scroll-y", "0px");
         grid.set_style("--offset-0", &format!("{}px", initial_offset));
         grid.set_style("--offset-1", &format!("{}px", initial_offset));
+    }
+
+    fn build_disk_frame(size: f64) {
+        let size = size / 2.0;
+
+        // use a canvas to build a frame
+        let canvas_size = size.ceil() as u32;
+
+        let canvas = CanvasElement::create(canvas_size, canvas_size);
+        let Some(ctx) = canvas.get_context_2d() else {
+            return;
+        };
+        ctx.set_image_smoothing_enabled(false);
+
+        let center = size / 2.0;
+
+        let (primary, secondary) = {
+            let style = Window::get()
+                .get_computed_style(&document().body().unwrap())
+                .unwrap()
+                .unwrap();
+            (
+                style.get_property_value("--primary-col").unwrap(),
+                style.get_property_value("--secondary-col").unwrap(),
+            )
+        };
+
+        // outer circle
+        ctx.set_stroke_style_str(&primary);
+        ctx.begin_path();
+        ctx.arc(
+            center,
+            center,
+            center - 1.0,
+            0.0,
+            std::f64::consts::PI * 2.0,
+        )
+        .unwrap();
     }
 }
 
@@ -316,14 +384,6 @@ impl State {
                     col.last_child()
                 };
                 if let Some(child) = to_remove {
-                    if let Some(dom_id) = child.get_attribute("id") {
-                        if let Some(id_str) = dom_id.strip_prefix("album-") {
-                            let msg = js_sys::Object::new();
-                            let _ = js_sys::Reflect::set(&msg, &"id".into(), &id_str.into());
-                            let _ = js_sys::Reflect::set(&msg, &"type".into(), &"cancel".into());
-                            let _ = self.worker.borrow().post_message(&msg);
-                        }
-                    }
                     child.remove();
                     removed = true;
                 }

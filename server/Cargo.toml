@@ -5,14 +5,17 @@ edition = "2024"
 
 [dependencies]
 tokio = { version = "1.44", features = ["rt", "rt-multi-thread", "net", "sync"] }
+# futures = "0.3"
+rayon = "1"
+
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "query", "json", "ws"] }
 tower-http = { version = "0.6", features = ["fs", "compression-br", "compression-deflate", "compression-gzip", "compression-zstd", "cors"] }
 
-wasmtime = "40"
+wasmtime = "41"
 
 notify = "8"
 notify-debouncer-mini = "0.7.0"
-jwalk = "0.8"
+walkdir = "2"
 
 maud = { workspace = true, features = ["axum"] }
 lol_html = "2.7.1"
@@ -27,15 +30,17 @@ thiserror.workspace = true
 anyhow.workspace = true
 
 log.workspace = true
-colog = "1"
+# colog = "1"
+env_logger = "0.11"
 
 serde.workspace = true
 serde_json = "1"
-base64.workspace = true
+
+# base64.workspace = true
+uuid.workspace = true
 
 rand.workspace = true
 
 lofty = "0.22"
 
-sqlx = { version = "0.8", default-features = false, features = [ "runtime-tokio", "sqlite", "derive", "migrate", "macros" ] }
-rayon = "1.11.0"
+sqlx = { version = "0.8", default-features = false, features = [ "runtime-tokio", "sqlite", "derive", "migrate", "macros", "uuid" ] }

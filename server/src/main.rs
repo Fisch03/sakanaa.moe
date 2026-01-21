@@ -24,7 +24,15 @@ impl AppState {
 
 #[tokio::main]
 async fn main() {
-    colog::init();
+    // colog::default_builder()
+    //     .filter_level(log::LevelFilter::Info)
+    //     .format(|f, r| colog::format::Compact::default().format(f, r))
+    //     .init();
+
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .filter_module("lofty", log::LevelFilter::Error)
+        .init();
 
     let state = AppState::new().await.unwrap();
 

@@ -1,4 +1,5 @@
 use wasm_bindgen::JsCast;
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
 
 use crate::Window;
 
@@ -10,9 +11,15 @@ pub struct Element {
     inner: web_sys::Element,
 }
 
+pub struct CanvasElement {
+    inner: web_sys::HtmlCanvasElement,
+}
+
 impl Element {
     pub fn create(tag: &str) -> Self {
-        let inner = document().create_element(tag).expect("Failed to create element");
+        let inner = document()
+            .create_element(tag)
+            .expect("Failed to create element");
         Self { inner }
     }
 
@@ -56,9 +63,12 @@ impl Element {
             .style();
         style.set_property(property, value).ok();
     }
-    
+
     pub fn get_style(&self, property: &str) -> Option<String> {
-         self.html_element()?.style().get_property_value(property).ok()
+        self.html_element()?
+            .style()
+            .get_property_value(property)
+            .ok()
     }
 
     pub fn set_attribute(&self, name: &str, value: &str) {
@@ -76,7 +86,7 @@ impl Element {
     pub fn prepend(&self, child: &Element) {
         let _ = self.inner.prepend_with_node_1(&child.inner);
     }
-    
+
     pub fn remove(&self) {
         self.inner.remove();
     }
@@ -85,17 +95,47 @@ impl Element {
         let rect = self.inner.get_bounding_client_rect();
         (rect.x(), rect.y(), rect.width(), rect.height())
     }
-    
+
     pub fn first_child(&self) -> Option<Element> {
-        self.inner.first_element_child().map(|inner| Element { inner })
+        self.inner
+            .first_element_child()
+            .map(|inner| Element { inner })
     }
 
     pub fn last_child(&self) -> Option<Element> {
-         self.inner.last_element_child().map(|inner| Element { inner })
+        self.inner
+            .last_element_child()
+            .map(|inner| Element { inner })
     }
 
     pub fn next_sibling(&self) -> Option<Element> {
-        self.inner.next_element_sibling().map(|inner| Element { inner })
+        self.inner
+            .next_element_sibling()
+            .map(|inner| Element { inner })
+    }
+}
+
+impl CanvasElement {
+    pub fn create(width: u32, height: u32) -> Self {
+        let canvas = document()
+            .create_element("canvas")
+            .expect("Failed to create canvas element")
+            .dyn_into::<HtmlCanvasElement>()
+            .expect("Created element is not a canvas");
+
+        canvas.set_width(width);
+        canvas.set_height(height);
+        Self { inner: canvas }
+    }
+
+    pub fn get_context_2d(&self) -> Option<CanvasRenderingContext2d> {
+        let context = self
+            .inner
+            .get_context("2d")
+            .ok()??
+            .dyn_into::<CanvasRenderingContext2d>()
+            .ok()?;
+        Some(context)
     }
 }
 

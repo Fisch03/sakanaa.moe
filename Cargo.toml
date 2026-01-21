@@ -17,6 +17,7 @@ rand = { version = "0.9" , default-features = false, features = ["std", "thread_
 serde = { version = "1", features = ["derive"] }
 
 base64 = "0.22"
+uuid = { version = "1", features = ["v4", "serde"] }
 
 thiserror = "2"
 anyhow = "1"
