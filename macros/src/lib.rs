@@ -15,7 +15,7 @@ pub fn include_palettes(input: proc_macro::TokenStream) -> proc_macro::TokenStre
             TokenTree::Literal(ref literal) => {
                 let path = literal.to_string();
                 let path = path.trim_matches('"');
-                match collect_palettes(&path, &mut palettes) {
+                match collect_palettes(path, &mut palettes) {
                     Ok(_) => {}
                     Err(e) => abort!(
                         token,
@@ -97,4 +97,3 @@ fn collect_palettes<P: AsRef<Path>>(
 fn luminance([r, g, b]: [u8; 3]) -> f32 {
     (0.2126 * r as f32) + 0.7152 * g as f32 + 0.0722 * b as f32
 }
-

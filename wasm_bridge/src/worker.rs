@@ -1,17 +1,27 @@
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{Blob, BlobPropertyBag, Url, Worker, WorkerOptions};
+use wasm_bindgen::prelude::*;
+use web_sys::{Blob, BlobPropertyBag, Url, WorkerOptions};
 
-pub struct BridgeWorker {
-    inner: Worker,
-    _on_message: Option<Closure<dyn FnMut(web_sys::MessageEvent)>>,
-    _on_error: Option<Closure<dyn FnMut(web_sys::ErrorEvent)>>,
+// Keep track of workers to clean them up on hot reload
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = window, js_name = _register_worker)]
+    fn register_worker(w: &web_sys::Worker);
+    #[wasm_bindgen(js_namespace = window, js_name = _cleanup_workers)]
+    fn cleanup_workers();
 }
 
-impl BridgeWorker {
+pub struct Worker {
+    inner: web_sys::Worker,
+    _on_message: Option<Closure<dyn FnMut(web_sys::MessageEvent)>>,
+    _on_error: Option<Closure<dyn FnMut(web_sys::Event)>>,
+}
+
+impl Worker {
     pub fn new_from_script(script: &str) -> Result<Self, JsValue> {
         let options = WorkerOptions::new();
         options.set_name("bridge-worker");
+        options.set_type(web_sys::WorkerType::Module);
 
         let blob_parts = js_sys::Array::new();
         blob_parts.push(&JsValue::from_str(script));
@@ -22,38 +32,87 @@ impl BridgeWorker {
         let blob = Blob::new_with_str_sequence_and_options(&blob_parts, &blob_props)?;
         let url = Url::create_object_url_with_blob(&blob)?;
 
-        let worker = Worker::new_with_options(&url, &options)?;
+        let worker = web_sys::Worker::new_with_options(&url, &options)?;
 
-        // Revoke the URL after creating the worker to free memory
         Url::revoke_object_url(&url)?;
 
-        Ok(Self {
+        #[cfg(feature = "hot-reload")]
+        if let Some(w) = web_sys::window()
+            && js_sys::Reflect::has(&w, &"_register_worker".into()).unwrap_or(false)
+        {
+            register_worker(&worker);
+        }
+
+        let mut worker = Self {
             inner: worker,
             _on_message: None,
             _on_error: None,
-        })
+        };
+        worker.set_onerror(move |e| {
+            log::error!("Album worker error: {:?}", e);
+        });
+
+        Ok(worker)
     }
 
-    pub fn set_onmessage<F>(&mut self, f: F)
+    pub fn new_rust_worker(entry_point: &str) -> Result<Self, JsValue> {
+        let origin = web_sys::window()
+            .and_then(|w| w.location().origin().ok())
+            .unwrap_or_default();
+
+        let timestamp = js_sys::Date::now();
+
+        let script = format!(
+            r#"
+            import init, {{ {} }} from '{}/pkg/site.js?t={}';
+            
+            (async () => {{
+                try {{
+                    await init('{}/pkg/site_bg.wasm?t={}');
+                    {}(self);
+                }} catch (e) {{
+                    console.error("Worker initialization failed:", e);
+                    setTimeout(() => {{ throw e; }}); 
+                }}
+            }})();
+            "#,
+            entry_point, origin, timestamp, origin, timestamp, entry_point
+        );
+
+        Self::new_from_script(&script)
+    }
+
+    pub fn set_onmessage<T, F>(&mut self, mut f: F)
     where
-        F: FnMut(web_sys::MessageEvent) + 'static,
+        T: for<'de> serde::Deserialize<'de>,
+        F: FnMut(T) + 'static,
     {
-        let closure = Closure::wrap(Box::new(f) as Box<dyn FnMut(web_sys::MessageEvent)>);
-        self.inner.set_onmessage(Some(closure.as_ref().unchecked_ref()));
+        let closure = Closure::wrap(Box::new(move |e: web_sys::MessageEvent| {
+            if let Ok(data) = serde_wasm_bindgen::from_value(e.data()) {
+                f(data);
+            } else {
+                web_sys::console::warn_1(&"Failed to deserialize worker message".into());
+            }
+        }) as Box<dyn FnMut(web_sys::MessageEvent)>);
+
+        self.inner
+            .set_onmessage(Some(closure.as_ref().unchecked_ref()));
         self._on_message = Some(closure);
     }
 
     pub fn set_onerror<F>(&mut self, f: F)
     where
-        F: FnMut(web_sys::ErrorEvent) + 'static,
+        F: FnMut(web_sys::Event) + 'static,
     {
-        let closure = Closure::wrap(Box::new(f) as Box<dyn FnMut(web_sys::ErrorEvent)>);
-        self.inner.set_onerror(Some(closure.as_ref().unchecked_ref()));
+        let closure = Closure::wrap(Box::new(f) as Box<dyn FnMut(web_sys::Event)>);
+        self.inner
+            .set_onerror(Some(closure.as_ref().unchecked_ref()));
         self._on_error = Some(closure);
     }
 
-    pub fn post_message(&self, message: &JsValue) -> Result<(), JsValue> {
-        self.inner.post_message(message)
+    pub fn post_message<T: serde::Serialize>(&self, message: &T) -> Result<(), JsValue> {
+        let val = serde_wasm_bindgen::to_value(message)?;
+        self.inner.post_message(&val)
     }
 
     pub fn terminate(&self) {
@@ -61,12 +120,41 @@ impl BridgeWorker {
     }
 }
 
-impl Drop for BridgeWorker {
+impl Drop for Worker {
     fn drop(&mut self) {
-        // We don't automatically terminate on drop because the worker might be intended to outlive the wrapper struct in some cases,
-        // but typically in Rust RAII we might want to.
-        // For now, let's leave it manual or rely on the user to call terminate if they want to stop it.
-        // However, we MUST drop the closure to prevent leaks if it's not done automatically.
-        // (Closure is in the Option, so it will be dropped).
+        self.terminate();
+    }
+}
+
+// Extension trait for the Worker side logic (DedicatedWorkerGlobalScope)
+pub trait WorkerContextExt {
+    fn post_message_typed<T: serde::Serialize>(&self, message: &T) -> Result<(), JsValue>;
+    fn set_onmessage_typed<T, F>(&self, f: F)
+    where
+        T: for<'de> serde::Deserialize<'de>,
+        F: FnMut(T) + 'static;
+}
+
+impl WorkerContextExt for web_sys::DedicatedWorkerGlobalScope {
+    fn post_message_typed<T: serde::Serialize>(&self, message: &T) -> Result<(), JsValue> {
+        let val = serde_wasm_bindgen::to_value(message)?;
+        self.post_message(&val)
+    }
+
+    fn set_onmessage_typed<T, F>(&self, mut f: F)
+    where
+        T: for<'de> serde::Deserialize<'de>,
+        F: FnMut(T) + 'static,
+    {
+        let closure = Closure::wrap(Box::new(move |e: web_sys::MessageEvent| {
+            if let Ok(data) = serde_wasm_bindgen::from_value(e.data()) {
+                f(data);
+            } else {
+                web_sys::console::warn_1(&"Failed to deserialize worker message".into());
+            }
+        }) as Box<dyn FnMut(web_sys::MessageEvent)>);
+
+        self.set_onmessage(Some(closure.as_ref().unchecked_ref()));
+        closure.forget(); // Keep the closure alive for the lifetime of the worker
     }
 }

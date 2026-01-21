@@ -13,9 +13,12 @@ grass.workspace = true
 
 log.workspace = true
 
+serde = { workspace = true, features = ["derive"] }
 wasm-bindgen.workspace = true
 js-sys.workspace = true
-web-sys = { workspace = true, features = [] }
+web-sys = { workspace = true, features = ["DedicatedWorkerGlobalScope", "MessageEvent", "Request", "RequestInit", "RequestMode", "Response", "WorkerLocation"] }
+tokio = { version = "1", features = ["sync"] }
+wasm-bindgen-futures = "0.4"
 
 common = { path = '../common/' }
 wasm_bridge = { path = '../wasm_bridge/' }

@@ -1,113 +1,53 @@
-use std::path::PathBuf;
-
-use axum::{
-    Json, Router,
-    extract::{Path, State},
-    http::StatusCode,
-    response::{IntoResponse, Response},
-    routing::get,
-};
-use fast_image_resize::{FilterType, ResizeAlg, ResizeOptions, Resizer, SrcCropping};
-use image::{DynamicImage, ImageBuffer};
-use lofty::prelude::*;
 use serde::Serialize;
 use sqlx::Type;
+use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 use walkdir::WalkDir;
+use lofty::prelude::*;
 
 use crate::AppState;
+use super::images::generate_cover;
 
 const MUSIC_DIR: &str = "/home/sakanaa/nas/Audio/Music/";
-const COVER_DIR: &str = "db/covers/";
 
-pub async fn init_api(state: AppState) -> Router<AppState> {
-    let (tx, mut rx) = mpsc::channel(128);
+#[derive(Clone, Copy, Debug, Type, Serialize)]
+#[sqlx(transparent)]
+pub struct ArtistId(pub i64);
 
-    rayon::spawn(|| scan_music_library(tx));
-
-    tokio::spawn(async move {
-        while let Some(track) = rx.recv().await {
-            state.find_or_create_track(track).await.unwrap();
-        }
-    });
-
-    Router::new()
-        .route("/album/random/{count}", get(get_random_albums))
-        .route("/cover/{id}", get(get_cover))
+#[derive(Clone, Debug)]
+pub struct Artist {
+    pub name: String,
+    pub mbid: Option<String>,
 }
 
-#[derive(Serialize)]
-struct AlbumResponse {
-    title: String,
-    id: AlbumId,
-    album_artist: Option<ArtistResponse>,
-    cover_id: Option<i64>,
+#[derive(Clone, Copy, Debug, Type, Serialize)]
+#[sqlx(transparent)]
+pub struct AlbumId(pub i64);
+
+#[derive(Clone, Debug)]
+pub struct Album {
+    pub title: String,
+    pub path: String,
+    pub has_embedded_cover: bool,
+    pub mbid: Option<String>,
+    pub album_artist: Option<Artist>,
 }
 
-#[derive(Serialize)]
-struct ArtistResponse {
-    name: String,
-    id: ArtistId,
+#[derive(Clone, Copy, Debug, Type, Serialize)]
+#[sqlx(transparent)]
+pub struct TrackId(pub i64);
+
+#[derive(Clone, Debug)]
+pub struct Track {
+    pub title: String,
+    pub path: String,
+    pub has_embedded_cover: bool,
+    pub mbid: Option<String>,
+    pub album: Option<Album>,
+    pub artist: Option<Artist>,
 }
 
-pub async fn get_random_albums(State(state): State<AppState>, Path(count): Path<i64>) -> Response {
-    let Ok(albums) = sqlx::query!(
-        r#"SELECT album_id, title, artist_id, cover_id FROM albums ORDER BY RANDOM() LIMIT ?"#,
-        count
-    )
-    .fetch_all(&state.db)
-    .await
-    else {
-        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-    };
-
-    let mut responses = Vec::new();
-    responses.reserve_exact(albums.len());
-    for album in albums {
-        let album_artist = if let Some(artist_id) = album.artist_id {
-            let Ok(artist_record) = sqlx::query!(
-                "SELECT artist_id, name FROM artists WHERE artist_id = ?",
-                artist_id
-            )
-            .fetch_one(&state.db)
-            .await
-            else {
-                return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-            };
-            Some(ArtistResponse {
-                name: artist_record.name,
-                id: ArtistId(artist_record.artist_id),
-            })
-        } else {
-            None
-        };
-
-        let album_response = AlbumResponse {
-            title: album.title,
-            id: AlbumId(album.album_id),
-            album_artist,
-            cover_id: album.cover_id,
-        };
-
-        responses.push(album_response);
-    }
-
-    Json(responses).into_response()
-}
-
-async fn get_cover(Path(id): Path<i64>) -> Response {
-    let cover_path = PathBuf::from(COVER_DIR).join(format!("{}.webp", id));
-    if let Ok(cover_data) = std::fs::read(cover_path) {
-        Response::builder()
-            .header("Content-Type", "image/webp")
-            .body(cover_data.into())
-            .unwrap()
-    } else {
-        StatusCode::NOT_FOUND.into_response()
-    }
-}
-
-fn scan_music_library(track_tx: mpsc::Sender<Track>) {
+pub fn scan_music_library(track_tx: mpsc::Sender<Track>) {
     let mut scanned_files = 0;
 
     for entry in WalkDir::new(MUSIC_DIR) {
@@ -117,7 +57,6 @@ fn scan_music_library(track_tx: mpsc::Sender<Track>) {
         let path = entry.path();
 
         if path.is_file() {
-
             let track_tx = track_tx.clone();
             let path = path.to_path_buf();
             process_file(&path, track_tx.clone());
@@ -126,51 +65,14 @@ fn scan_music_library(track_tx: mpsc::Sender<Track>) {
         }
 
         if scanned_files % 250 == 0 {
-            log::info!("Scanned {} files...", scanned_files);
+            log::info!("scanned {} files...", scanned_files);
         }
     }
 
-    log::info!("Finished scanning music library. Total files scanned: {}", scanned_files);
+    log::info!("finished scanning music library. total files scanned: {}", scanned_files);
 }
 
-#[derive(Clone, Copy, Debug, Type, Serialize)]
-#[sqlx(transparent)]
-struct ArtistId(i64);
-
-#[derive(Clone, Debug)]
-struct Artist {
-    name: String,
-    mbid: Option<String>,
-}
-
-#[derive(Clone, Copy, Debug, Type, Serialize)]
-#[sqlx(transparent)]
-struct AlbumId(i64);
-
-#[derive(Clone, Debug)]
-struct Album {
-    title: String,
-    path: String,
-    has_embedded_cover: bool,
-    mbid: Option<String>,
-    album_artist: Option<Artist>,
-}
-
-#[derive(Clone, Copy, Debug, Type, Serialize)]
-#[sqlx(transparent)]
-struct TrackId(i64);
-
-#[derive(Clone, Debug)]
-struct Track {
-    title: String,
-    path: String,
-    has_embedded_cover: bool,
-    mbid: Option<String>,
-    album: Option<Album>,
-    artist: Option<Artist>,
-}
-
-fn process_file(path: &std::path::Path, track_tx: mpsc::Sender<Track>) {
+fn process_file(path: &Path, track_tx: mpsc::Sender<Track>) {
     let tagged_file = lofty::read_from_path(path);
     if let Ok(tagged_file) = tagged_file
         && let Some(tag) = tagged_file.primary_tag()
@@ -228,55 +130,9 @@ fn process_file(path: &std::path::Path, track_tx: mpsc::Sender<Track>) {
     }
 }
 
-fn get_embedded_cover(path: &std::path::Path) -> Option<DynamicImage> {
-    let tagged_file = lofty::read_from_path(path).ok()?;
-    let tag = tagged_file.primary_tag()?;
-    let picture = tag.pictures().first()?;
-    image::load_from_memory(picture.data()).ok()
-}
-
-fn get_image_from_file(path: &std::path::Path) -> Option<DynamicImage> {
-    image::open(path).ok()
-}
-
-fn resize_and_save_cover(cover_id: i64, img: DynamicImage) {
-    let img = img.to_rgb8();
-    let mut resized_cover = DynamicImage::ImageRgb8(ImageBuffer::new(300, 300));
-    let mut resizer = Resizer::new();
-    let mut opts = ResizeOptions::new();
-    opts.algorithm = ResizeAlg::Convolution(FilterType::Hamming);
-    opts.cropping = SrcCropping::FitIntoDestination((300.0, 300.0));
-    let _ = resizer.resize(&img, &mut resized_cover, Some(&opts));
-
-    if let Ok(encoder) = webp::Encoder::from_image(&resized_cover) {
-        let cover = encoder.encode(50.0);
-        let cover_path = PathBuf::from(COVER_DIR).join(format!("{}.webp", cover_id));
-        let _ = std::fs::create_dir_all(COVER_DIR);
-        let _ = std::fs::write(cover_path, &*cover);
-    }
-}
-
-fn generate_cover(cover_id: i64, source_path: PathBuf, is_embedded: bool) {
-    log::info!(
-        "Generating cover {} from {} (embedded: {})",
-        cover_id,
-        source_path.display(),
-        is_embedded
-    );
-
-    let img = if is_embedded {
-        get_embedded_cover(&source_path)
-    } else {
-        get_image_from_file(&source_path)
-    };
-
-    if let Some(img) = img {
-        resize_and_save_cover(cover_id, img);
-    }
-}
-
+// DB Extension methods
 impl AppState {
-    async fn find_or_create_track(&self, track: Track) -> sqlx::Result<Option<TrackId>> {
+    pub async fn find_or_create_track(&self, track: Track) -> sqlx::Result<Option<TrackId>> {
         let album_id = if let Some(ref album) = track.album {
             self.find_or_create_album(album.clone(), &track.path)
                 .await?
