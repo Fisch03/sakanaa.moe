@@ -1,14 +1,15 @@
 use log::debug;
 use maud::html;
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, f64::consts::PI, rc::Rc};
 use wasm_bindgen::prelude::*;
-use wasm_bridge::{Element, ElementCollection, Window, Worker, document, dom::CanvasElement};
+use wasm_bridge::{Element, ElementCollection, Window, Worker, document};
+use web_sys::HtmlCanvasElement;
 
 mod messages;
 mod state;
 mod worker;
 
-use messages::MainMessage;
+use messages::{MainMessage, WorkerMessage};
 use state::AlbumGridState;
 
 pub struct AlbumGrid {
@@ -46,12 +47,9 @@ impl AlbumGrid {
                         let _ = state.worker.borrow().post_message(&msg);
                     }
                 }
-                MainMessage::Cover { id, cover_id } => {
+                MainMessage::Cover { id, data_url } => {
                     if let Some(album_elem) = Element::by_id(&format!("album-{}", id)) {
-                        album_elem.set_style(
-                            "background-image",
-                            &format!("url('/api/v1/music/cover/{}')", cover_id),
-                        );
+                        album_elem.set_style("background-image", &format!("url('{}')", data_url));
                         album_elem.set_style("background-size", "cover");
                     }
                 }
@@ -104,6 +102,56 @@ impl AlbumGrid {
         }
     }
 
+    fn generate_placeholder(size: f64, primary: &str, secondary: &str) -> String {
+        let document = document();
+        let canvas = document
+            .create_element("canvas")
+            .unwrap()
+            .dyn_into::<HtmlCanvasElement>()
+            .unwrap();
+
+        // High DPI scaling (optional but looks better)
+        let render_size = size / 2.0;
+        let pixel_size = render_size.ceil() as u32;
+
+        canvas.set_width(pixel_size);
+        canvas.set_height(pixel_size);
+
+        if let Some(ctx) = canvas
+            .get_context("2d")
+            .unwrap()
+            .unwrap()
+            .dyn_into::<web_sys::CanvasRenderingContext2d>()
+            .ok()
+        {
+            ctx.set_image_smoothing_enabled(false);
+            ctx.set_stroke_style_str(primary);
+            ctx.set_fill_style_str(secondary);
+            ctx.set_line_width(1.0);
+
+            let center = render_size / 2.0;
+            let r_outer = center;
+            let r_hub = r_outer * 0.35;
+            let r_hole = r_outer * 0.15;
+
+            // Clear
+            ctx.clear_rect(0.0, 0.0, render_size, render_size);
+
+            // 1. outer rim
+            ctx.begin_path();
+            ctx.arc(center, center, r_outer - 0.5, 0.0, PI * 2.0)
+                .unwrap();
+            ctx.stroke();
+
+            // hole
+            ctx.begin_path();
+            ctx.arc(center, center, r_hole, 0.0, PI * 2.0).unwrap();
+            ctx.stroke();
+        }
+
+        canvas.to_data_url().unwrap_or_default()
+    }
+
     fn initialize_dom(grid: &Element, state: Rc<RefCell<AlbumGridState>>) {
         let (w, h) = Window::get().size().unwrap_or((800.0, 600.0));
 
@@ -133,9 +181,14 @@ impl AlbumGrid {
         } else {
             100.0
         };
-        grid.set_inner_html("");
 
-        Self::build_disk_frame(c_width);
+        let album_width = if let Some(a) = albums.iter().next() {
+            a.rect().2
+        } else {
+            100.0
+        };
+
+        grid.set_inner_html("");
 
         let cols_count = (w / c_width).ceil() as i32 + 10;
         let center_c = cols_count / 2;
@@ -149,35 +202,7 @@ impl AlbumGrid {
 
         let initial_offset = (h / 2.0) / Self::cos_a();
 
-        {
-            let mut s = state.borrow_mut();
-            s.logical_size = l_size;
-            s.velocity = -20.0;
-            s.current_y = 0.0;
-            s.row_counts = (0, 0);
-            s.offsets = (initial_offset, initial_offset);
-        }
-
-        grid.set_style("--scroll-y", "0px");
-        grid.set_style("--offset-0", &format!("{}px", initial_offset));
-        grid.set_style("--offset-1", &format!("{}px", initial_offset));
-    }
-
-    fn build_disk_frame(size: f64) {
-        let size = size / 2.0;
-
-        // use a canvas to build a frame
-        let canvas_size = size.ceil() as u32;
-
-        let canvas = CanvasElement::create(canvas_size, canvas_size);
-        let Some(ctx) = canvas.get_context_2d() else {
-            return;
-        };
-        ctx.set_image_smoothing_enabled(false);
-
-        let center = size / 2.0;
-
-        let (primary, _secondary) = {
+        let (primary, secondary) = {
             let style = Window::get()
                 .get_computed_style(&document().body().unwrap())
                 .unwrap()
@@ -188,17 +213,28 @@ impl AlbumGrid {
             )
         };
 
-        // outer circle
-        ctx.set_stroke_style_str(&primary);
-        ctx.begin_path();
-        ctx.arc(
-            center,
-            center,
-            center - 1.0,
-            0.0,
-            std::f64::consts::PI * 2.0,
-        )
-        .unwrap();
+        // Generate and set placeholder
+        let placeholder_url = Self::generate_placeholder(album_width, &primary, &secondary);
+        grid.set_style("--cd-placeholder", &format!("url('{}')", placeholder_url));
+
+        {
+            let mut s = state.borrow_mut();
+            s.logical_size = l_size;
+            s.velocity = -20.0;
+            s.current_y = 0.0;
+            s.row_counts = (0, 0);
+            s.offsets = (initial_offset, initial_offset);
+
+            s.send_to_worker(WorkerMessage::SetSize {
+                size: album_width,
+                primary,
+                secondary,
+            });
+        }
+
+        grid.set_style("--scroll-y", "0px");
+        grid.set_style("--offset-0", &format!("{}px", initial_offset));
+        grid.set_style("--offset-1", &format!("{}px", initial_offset));
     }
 }
 

@@ -26,6 +26,11 @@ web-sys = { workspace = true, features = [
 
     "HtmlCanvasElement",
     "CanvasRenderingContext2d",
+    "OffscreenCanvas",
+    "OffscreenCanvasRenderingContext2d",
+    "ImageBitmap",
+    "HtmlImageElement",
+    "FileReader",
 
     "CssStyleDeclaration",
 

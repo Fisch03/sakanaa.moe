@@ -26,6 +26,7 @@ lol_alloc = "0.4.1"
 
 rand.workspace = true
 getrandom = { version = "0.3", features = ["wasm_js"] }
+futures = "0.3.31"
 
 [features]
 hot-reload = ["wasm_bridge/hot-reload"]

@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize, Serializer};
-use std::{
-    path::PathBuf,
-    sync::RwLock,
-};
+use std::{path::PathBuf, sync::RwLock};
 use tokio::sync::broadcast;
 use wasmtime::{Engine, Module};
 

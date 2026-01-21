@@ -5,11 +5,13 @@ mod loader;
 mod logger;
 
 pub mod dom;
+pub mod canvas;
 pub mod window;
 pub mod worker;
 
 pub use abi::{alloc, dealloc, from_host_string, to_host_string};
 pub use dom::{Element, ElementCollection, document};
+pub use canvas::{CanvasElement, OffscreenCanvasElement};
 pub use loader::load_wasm_module;
 pub use logger::init_logger;
 pub use window::Window;

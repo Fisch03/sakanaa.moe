@@ -11,10 +11,6 @@ pub struct Element {
     inner: web_sys::Element,
 }
 
-pub struct CanvasElement {
-    inner: web_sys::HtmlCanvasElement,
-}
-
 impl Element {
     pub fn create(tag: &str) -> Self {
         let inner = document()
@@ -112,30 +108,6 @@ impl Element {
         self.inner
             .next_element_sibling()
             .map(|inner| Element { inner })
-    }
-}
-
-impl CanvasElement {
-    pub fn create(width: u32, height: u32) -> Self {
-        let canvas = document()
-            .create_element("canvas")
-            .expect("Failed to create canvas element")
-            .dyn_into::<HtmlCanvasElement>()
-            .expect("Created element is not a canvas");
-
-        canvas.set_width(width);
-        canvas.set_height(height);
-        Self { inner: canvas }
-    }
-
-    pub fn get_context_2d(&self) -> Option<CanvasRenderingContext2d> {
-        let context = self
-            .inner
-            .get_context("2d")
-            .ok()??
-            .dyn_into::<CanvasRenderingContext2d>()
-            .ok()?;
-        Some(context)
     }
 }
 

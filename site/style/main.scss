@@ -153,12 +153,16 @@ body {
       width: $album-size;
       height: $album-size;
       flex-shrink: 0;
-      border: 2px solid var(--primary-col);
+      /* border: 2px solid var(--primary-col); */
       background-color: var(--secondary-col);
+      background-image: var(--cd-placeholder);
+      background-size: cover;
 
       transform: rotate(-$angle);
 
       border-radius: 100%;
+      /* -webkit-mask-image: radial-gradient(circle, transparent 15%, black 15.1%); */
+      /* mask-image: radial-gradient(circle, transparent 15%, black 15.1%); */
     }
   }
 
